@@ -10,16 +10,16 @@ shinyUI(fluidPage(
   ),
   useShinyjs(),
   titlePanel("Brottsförebyggande arbete i Dalarna"),
-  
+
   tabsetPanel(
-    
-    # ---------------------------- 
+
+    # ----------------------------
     # Flik 1: Karta & Diagram
     # ----------------------------
     tabPanel("Polisstatistik",
-     
+
   br(),
-  
+
   # Ladda ner-knapp
   fluidRow(
     column(
@@ -31,8 +31,8 @@ shinyUI(fluidPage(
       selectInput(
         inputId = "val_indelning",
         label = "Brottsindelning",
-        choices = names(brott_niva_nyckel) %>% 
-          .[str_detect(., "_namn")] %>% 
+        choices = names(brott_niva_nyckel) %>%
+          .[str_detect(., "_namn")] %>%
           str_remove("_namn"),
         selected = 1
       )),
@@ -54,13 +54,13 @@ shinyUI(fluidPage(
       width = 7,
       leafletOutput("karta_brott", height = "600px")
       ),
-    
-    
+
+
     column(
       width = 7,
       # Uppåtpilen högerställd
       div(style = "text-align: right;",
-          actionButton("diagram_back", label = NULL, icon = icon("level-up-alt"), 
+          actionButton("diagram_back", label = NULL, icon = icon("level-up-alt"),
                        class = "btn btn-light", title = "Gå tillbaka till högre nivå i diagrammet nedan")
       ),
       div(style = "display: flex; flex-direction: column; align-items: stretch;",  # stretch = full bredd
@@ -80,7 +80,7 @@ shinyUI(fluidPage(
     ) # fluidRow
   ),
 
-  # ---------------------------- 
+  # ----------------------------
   # Flik 2: Annat innehåll
   # ----------------------------
   tabPanel("BRÅ kommunindikatorer",
@@ -97,7 +97,7 @@ shinyUI(fluidPage(
                  div(style = "flex: 1; margin-right: 10px;",        # diagramdelen tar resten
                      fluidRow(
                        column(width = 6, girafeOutput("diagram_ntu",height = "100%", width = "100%")),
-                       column(width = 6, 
+                       column(width = 6,
                               girafeOutput("diagram_anm_brott", height = "100%", width = "100%"),
                               girafeOutput("diagram_anm_brott_antal", height = "100%", width = "100%")
                               )
@@ -135,12 +135,12 @@ shinyUI(fluidPage(
   br(),
   div(
     style = "margin-bottom: 20px; color: #666; max-width: 800px; font-size: 14px;",
-    HTML("Rapporten är skapad av Samhällsanalys, Region Dalarna. Syfttet är att 
-         avlasta brottsförebyggande tjänstepersoner i kommunerna och på Länststyrelsen genom att 
-         underlätta visualisering och analys av brottsstatistik från Polisen och från 
-         Brottsförebyggande rådet (BRÅ). Samhällsanalys har god kompetens att bearbeta och visualisera 
-         data medan ovan nämnda tjänstepersoner har god kompetens att bedriva brottsförebyggande 
-         arbete. Därmed frigörs tid för de brottsförebyggande aktörerna åt brottsförebyggande arbete vilket 
+    HTML("Rapporten är skapad av Samhällsanalys, Region Dalarna. Syftet är att
+         avlasta brottsförebyggande tjänstepersoner i kommunerna och på Länststyrelsen genom att
+         underlätta visualisering och analys av brottsstatistik från Polisen och från
+         Brottsförebyggande rådet (BRÅ). Samhällsanalys har god kompetens att bearbeta och visualisera
+         data medan ovan nämnda tjänstepersoner har god kompetens att bedriva brottsförebyggande
+         arbete. Därmed frigörs tid för de brottsförebyggande aktörerna åt brottsförebyggande arbete vilket
          därmed kan bidra till länets utveckling.<br><br>
          <b>Kontaktuppgifter</b><br>
          <a href='mailto:samhallsanalys@regiondalarna.se?subject=Webbrapport Brottsförebyggande arbete i Dalarna'>Samhällsanalys, Region Dalarna</a> för frågor om webbrapporten.<br>

@@ -11,5 +11,3 @@ Detta repository innehåller en Shinyapplikation (`brott`) för Samhällsanalys,
 
 - Deployment sker via GitHub Actions (`.github/workflows/deploy.yml`)
   till Shiny-servern (appmapp `/srv/shiny-server/brott`).
-
-Justera detta README efter behov.
