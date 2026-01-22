@@ -415,28 +415,11 @@ shinyServer(function(input, output, session) {
     
     # styr zoom-nivån - olika för kommun/DeSO och init/uppdatering
     
-    if (!ar_uppdatering) {
-      # Första gången: sätt grundvy / zooma in
-      if (kartniva() == "kommun") {
-        kartobj <- kartobj %>% 
-          setView(lng = 14.8, lat = 61.1, zoom = 7)
-      } else {
-        kartobj <- kartobj %>% 
-          fitBounds(
-            lng1 = bbox[["xmin"]], lat1 = bbox[["ymin"]],
-            lng2 = bbox[["xmax"]], lat2 = bbox[["ymax"]]
-          )
-      }
-    } else {
-      # Uppdatering: bara animera zoom när vi är på DeSO-nivå
-      if (kartniva() == "deso") {
-        kartobj <- kartobj %>% 
-          fitBounds(
-            lng1 = bbox[["xmin"]], lat1 = bbox[["ymin"]],
-            lng2 = bbox[["xmax"]], lat2 = bbox[["ymax"]]
-          )
-      }
-    }
+    kartobj <- kartobj %>% 
+      fitBounds(
+        lng1 = bbox[["xmin"]], lat1 = bbox[["ymin"]],
+        lng2 = bbox[["xmax"]], lat2 = bbox[["ymax"]]
+      )
     
     # hantering av hus-ikonen, dvs. gå tillbaka till kommunnivå
     if (!ar_uppdatering) {
