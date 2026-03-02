@@ -41,7 +41,7 @@ shinyUI(fluidPage(
     selectInput(
       inputId = "val_ar",
       label = "Välj tidsperiod:",
-      choices = c("Senaste 12 månaderna", rev(sort(unique(format(brottsdata$Inskrivningsdatum, "%Y"))))),
+      choices = c("Senaste 12 månaderna", rev(sort(unique(format(brottsdata$inskrivningsdatum, "%Y"))))),
       selected = "Senaste 12 månaderna"
     ))
   ),
