@@ -2,18 +2,18 @@
 # ---- Hjälpfunktioner ----
 
 filtrera_data <- function(df, kommun, indelning, niva) {
-  if (kommun != "Alla") df <- df %>% filter(Kommunnamn == kommun)
+  if (kommun != "Alla") df <- df %>% filter(kommunnamn == kommun)
   
   # Kolumnnamn för vald indelning
-  niva_col <- "Brott_niva" # indelning
-  namn_col <- paste0(indelning, "_namn")
+  niva_col <- "brott_niva" # indelning
+  namn_col <- paste0(tolower(indelning), "_namn")
   
   # Slå ihop och filtrera
   df <- df %>%
     left_join(
       brott_niva_nyckel %>% 
-        select(Brottskod, !!niva_col, !!namn_col),
-      by = "Brottskod", 
+        select(brottskod, !!niva_col, !!namn_col),
+      by = "brottskod", 
       relationship = "many-to-many"
     ) %>%
     filter(.data[[niva_col]] == !!niva)
@@ -25,7 +25,13 @@ filtrera_tidsperiod <- function(df, period) {
   if (period == "Senaste 12 månaderna") {
 
     # Hämta senaste årmånad i datan
-    senaste_armanad <- max(df$`Inskr årmånad`, na.rm = TRUE)
+    senaste_armanad <- max(df$`inskr årmånad`, na.rm = TRUE)
+    
+    # Om vi fortfarande inte hittar något → avbryt tyst
+    if (is.na(senaste_armanad)) {
+      return(df)
+    }
+    
 
     # Skapa en sekvens med de senaste 12 månaderna
     senaste_armanad_datum <- as.Date(paste0(senaste_armanad, "01"), "%Y%m%d")
@@ -33,11 +39,11 @@ filtrera_tidsperiod <- function(df, period) {
                               to = senaste_armanad_datum,
                               by = "month"), "%Y%m")
 
-
     # Filtrera på dessa 12 månader
-    df <- df %>% filter(`Inskr årmånad` %in% senaste_seq)
+    df <- df %>% filter(`inskr årmånad` %in% senaste_seq)
+    
   } else {
-    df <- df %>% filter(`Inskr år` == period)
+    df <- df %>% filter(`inskr år` == period)
   }
   return(df)
 }
@@ -51,7 +57,7 @@ berakna_brott_per_100k <- function(df, bef_df, kommun, period, namn_col) {
       pull(bef)
   } else {
     befolkning <- bef_df %>%
-      filter(år == period, Kommunnamn == kommun) %>%
+      filter(år == period, kommunnamn == kommun) %>%
       summarise(bef = sum(bef, na.rm = TRUE)) %>%
       pull(bef)
   }
@@ -88,13 +94,13 @@ summering_med_bef <- function(df, join_var, bef_df, period, extra_grp_var = NULL
   
   if (period == "Senaste 12 månaderna") {
     # Beräkna viktad befolkning baserat på antal månader per år
-    senaste_datum <- max(as.Date(df$Inskrivningsdatum))
+    senaste_datum <- max(as.Date(df$inskrivningsdatum))
     start_datum <- senaste_datum %m-% months(11)
     
     manader_per_ar <- df %>%
-      filter(Inskrivningsdatum >= start_datum) %>%
-      mutate(år = as.character(format(Inskrivningsdatum, "%Y")),
-             månad = as.character(format(Inskrivningsdatum, "%m"))) %>%
+      filter(inskrivningsdatum >= start_datum) %>%
+      mutate(år = as.character(format(inskrivningsdatum, "%Y")),
+             månad = as.character(format(inskrivningsdatum, "%m"))) %>%
       group_by(år, across(all_of(join_geo))) %>%
       summarise(antal_manader = n_distinct(månad), .groups = "drop") %>%
       left_join(bef_df, by = c("år", join_geo)) %>%
@@ -262,36 +268,35 @@ shinyServer(function(input, output, session) {
         } else {
           .
         }
-      } %>% dplyr::pull(Brottskod)
+      } %>% dplyr::pull(brottskod)
     
     # Lägg till filtrering för vald kategori på max-nivå
     if (!is.null(vald_max_niva_kategori())) {
       brottskoder_maxniva <- brott_niva_nyckel %>%
         filter(.data[[paste0(indelning, "_namn")]] == vald_max_niva_kategori()) %>%
-        pull(Brottskod)
+        pull(brottskod)
       
       brottskoder_filtrering <- intersect(brottskoder_filtrering, brottskoder_maxniva)
     }
     
     df_filtrering <- brottsdata %>% 
-      filter(Brottskod %in% brottskoder_filtrering)
+      filter(brottskod %in% brottskoder_filtrering)
     
     df <- filtrera_data(df_filtrering, vald_kommun(), indelning, niva)
-    df <- filtrera_tidsperiod(df, input$val_ar)                  # här filtrerar vi på rätt nivå
-
+    
     if (kartniva() == "kommun") {
       geo      <- kommun_sf
-      join_var <- "Kommunkod"
-      join_namn <- "Kommunnamn"
+      join_var <- "kommunkod"
+      join_namn <- "kommunnamn"
     } else {
       geo      <- deso_sf %>%
-        filter(Kommunnamn == vald_kommun())
+        filter(kommunnamn == vald_kommun())
       join_var <- "desokod"
       join_namn <- "regsonamn"
       
       # Lägg på regsonamn från brottsdata så kolumnen alltid finns
       regsonamn_lookup <- brottsdata %>%
-        filter(Kommunnamn == vald_kommun()) %>%
+        filter(kommunnamn == vald_kommun()) %>%
         select(desokod, regsonamn) %>%
         distinct()
       
@@ -307,8 +312,8 @@ shinyServer(function(input, output, session) {
       ))
     }
     
-
-    df_sum <- summering_med_bef(df, join_var, bef_df, input$val_ar)
+    df <- filtrera_tidsperiod(df, input$val_ar)                                 # filtrera på tidsperiod
+    df_sum <- summering_med_bef(df, join_var, bef_df, input$val_ar)             # summera ihop antal brott och beräkna brott per 100k invånare
 
     # Slå ihop och behåll join_namn kolumnen
     geo_joined <- left_join(geo, df_sum, by = join_var) %>%
@@ -333,7 +338,8 @@ shinyServer(function(input, output, session) {
       
       if (!ar_uppdatering) {
         return(
-          leaflet(df_map) |>
+          #leaflet(df_map) |>
+          leaflet() |>
             addProviderTiles("CartoDB.Positron") |>
             addControl("Inga data för vald nivå/kombination",
                        position = "topright",
@@ -341,7 +347,8 @@ shinyServer(function(input, output, session) {
         )
       } else {
         return(
-          leafletProxy("karta_brott", data = df_map) |>
+          #leafletProxy("karta_brott", data = df_map) |>
+          leafletProxy("karta_brott") |>
             clearShapes() |>
             clearControls() |>
             addControl("Inga data för vald nivå/kombination",
@@ -519,10 +526,11 @@ shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$val_indelning, {
-   
+
     vald_indelning(input$val_indelning)
     brott_niva(1)
     rubrik_brott_niva(list()) 
+    vald_max_niva_kategori(NULL)                     # nollställ vald kategori på max-nivå när indelning ändras
     
   })
   
@@ -555,7 +563,7 @@ shinyServer(function(input, output, session) {
     kommun <- vald_kommun()
     
     # Kolumnnamn för vald indelning
-    niva_col <- "Brott_niva"  # indelning
+    niva_col <- "brott_niva"  # indelning
     namn_col <- paste0(indelning, "_namn")
     
     # Hämta max-nivå för aktuell indelning
@@ -579,10 +587,10 @@ shinyServer(function(input, output, session) {
       } else {
         .
       }
-    } %>% dplyr::pull(Brottskod)
+    } %>% dplyr::pull(brottskod)
     
     df_filtrering <- brottsdata %>% 
-      filter(Brottskod %in% brottskoder_filtrering)
+      filter(brottskod %in% brottskoder_filtrering)
     
     df_visa <- filtrera_data(df_filtrering, kommun, indelning, visa_niva) 
     df_visa <- filtrera_tidsperiod(df_visa, input$val_ar)
@@ -598,11 +606,11 @@ shinyServer(function(input, output, session) {
     }
     
     if (vald_kommun() == "Alla") {
-      df_visa <- df_visa %>% mutate(Kommunkod = str_sub(Kommunkod, 1, 2))
-      bef_sum <- bef_df %>% mutate(Kommunkod = str_sub(Kommunkod, 1, 2))
+      df_visa <- df_visa %>% mutate(kommunkod = str_sub(kommunkod, 1, 2))
+      bef_sum <- bef_df %>% mutate(kommunkod = str_sub(kommunkod, 1, 2))
     } else bef_sum <- bef_df 
 
-    df_sum <- summering_med_bef(df_visa, c("Kommunkod", namn_col), bef_sum, input$val_ar)
+    df_sum <- summering_med_bef(df_visa, c("kommunkod", namn_col), bef_sum, input$val_ar)
     
     vald_kat <- vald_max_niva_kategori()
     
@@ -634,7 +642,7 @@ shinyServer(function(input, output, session) {
     
     
     # Skapa diagram
-    p <- ggplot(df_sum, aes(x = reorder(grupp_kort, grupp_kort), y = brott_per_100k)) +
+    p <- ggplot(df_sum, aes(x = reorder(grupp_kort, brott_per_100k), y = brott_per_100k)) +
       geom_col_interactive(
         aes(tooltip = etikett, 
             data_id = kategori_namn, 
@@ -679,18 +687,18 @@ shinyServer(function(input, output, session) {
     
     nuvarande_niva <- isolate(brott_niva())
     indelning <- isolate(vald_indelning())
-    niva_col <- "Brott_niva" # vald_indelning()
+    niva_col <- "brott_niva" # vald_indelning()
     namn_col <- paste0(indelning, "_namn")
     
     # Hämta brottskoder för den klickade kategorin
     brottskoder_klickad <- brott_niva_nyckel %>%
       filter(.data[[namn_col]] == input$diagram_brottsomrade_selected,
              .data[[niva_col]] == nuvarande_niva) %>%
-      dplyr::pull(Brottskod)
+      dplyr::pull(brottskod)
     
     # Kontrollera om dessa brottskoder har poster på nästa nivå
     har_underniva <- brott_niva_nyckel %>%
-      filter(Brottskod %in% brottskoder_klickad,
+      filter(brottskod %in% brottskoder_klickad,
              .data[[niva_col]] == (nuvarande_niva + 1),
              !is.na(.data[[namn_col]])) %>%
       nrow() > 0
@@ -823,17 +831,16 @@ shinyServer(function(input, output, session) {
     # Rensa selection visuellt så nästa klick alltid registreras
     session$sendCustomMessage(type    = "diagram_geografi_set", message = character(0))
     
-    klickad_kod <- input$diagram_geografi_selected  # Kommunkod/desokod
+    klickad_kod <- input$diagram_geografi_selected  # kommunkod/desokod
     
     # --- Klick på kommunnivå ---
     if (kartniva() == "kommun") {
       
-      
-      kommunkod <- klickad_kod                        # Sätt vald kommunkod
+      vald_kommunkod <- klickad_kod                        # Sätt vald kommunkod
       
       ny_kommun <- kommun_sf %>%
-        dplyr::filter(Kommunkod == kommunkod) %>%
-        dplyr::pull(Kommunnamn) %>%
+        dplyr::filter(kommunkod == vald_kommunkod) %>%
+        dplyr::pull(kommunnamn) %>%
         unique()
       
       if (length(ny_kommun) == 1) {
@@ -854,56 +861,7 @@ shinyServer(function(input, output, session) {
         ar_uppdatering = TRUE
       )
       
-      # df_map   <- geo_data$data
-      # join_var <- geo_data$join_var
-      # join_namn <- geo_data$join_namn
-      # 
-      # if (nrow(df_map) == 0 || all(is.na(df_map$brott_per_100k))) {
-      #   leafletProxy("karta_brott") %>%
-      #     clearShapes() %>%
-      #     clearControls() %>%
-      #     addControl("Inga data för vald nivå/kombination",
-      #                position = "topright",
-      #                className = "map-filter-text")
-      #   return()
-      # }
-      # 
-      # pal  <- colorNumeric("YlOrRd", df_map$brott_per_100k, na.color = "transparent")
-      # bbox <- st_bbox(df_map)
-      # etiketter <- etiketter_karta()
-      # 
-      # df_map <- df_map %>%
-      #   mutate(
-      #     vald_geom = kartniva() == "deso" &&
-      #       !is.null(vald_deso()) &&
-      #       .data[[join_var]] == vald_deso()
-      #   )
-      # 
-      # leafletProxy("karta_brott", data = df_map) %>%
-      #   clearShapes() %>%
-      #   clearControls() %>%
-      #   addPolygons(
-      #     layerId = df_map[[join_namn]],
-      #     fillColor   = ~pal(brott_per_100k),
-      #     fillOpacity = ~ifelse(vald_geom, 1,
-      #                           ifelse(antal_brott == 0, 0, 0.7)),
-      #     weight      = ~ifelse(vald_geom, 2, 0.7),
-      #     color       = "#555555",
-      #     label       = etiketter,
-      #     highlightOptions = highlightOptions(weight = 3, color = "#000000", bringToFront = TRUE)
-      #   ) %>%
-      #   addLegend("bottomleft",
-      #             pal = pal, values = ~brott_per_100k,
-      #             title = paste0("Brott per 100k inv – ", vald_kommun()),
-      #             labFormat = labelFormat(big.mark = " ", digits = 0)) %>%
-      #   addControl(label_for_map(), position = "topright",
-      #              className = "map-filter-text") %>%
-      #   fitBounds(
-      #     lng1 = bbox[["xmin"]], lat1 = bbox[["ymin"]],
-      #     lng2 = bbox[["xmax"]], lat2 = bbox[["ymax"]]
-      #   )
-      # 
-      
+
     } else {
       
       if (!is.null(vald_deso()) && vald_deso() == klickad_kod) {          # --- Klick på DeSO-nivå ---
@@ -947,7 +905,7 @@ shinyServer(function(input, output, session) {
         } else {
           .
         }
-      } %>% dplyr::pull(Brottskod)
+      } %>% dplyr::pull(brottskod)
     
     
     # Lägg till filtrering för vald kategori på max-nivå om sådan finns
@@ -955,13 +913,13 @@ shinyServer(function(input, output, session) {
     if (!is.null(kat_max)) {
       brottskoder_maxniva <- brott_niva_nyckel %>%
         filter(.data[[paste0(indelning, "_namn")]] == kat_max) %>%
-        pull(Brottskod)
+        pull(brottskod)
       
       brottskoder_filtrering <- intersect(brottskoder_filtrering, brottskoder_maxniva)
     }
     
     df_filtrering <- brottsdata %>% 
-      filter(Brottskod %in% brottskoder_filtrering)
+      filter(brottskod %in% brottskoder_filtrering)
     
     df_manad_data <- filtrera_data(df_filtrering, vald_kommun(), indelning, niva)
     df_manad_data <- filtrera_tidsperiod(df_manad_data, input$val_ar)
@@ -974,23 +932,23 @@ shinyServer(function(input, output, session) {
     # Skapa månadsdata med månadsvariabel
     df_manad_data <- df_manad_data %>%
       mutate(
-        datum = as.Date(Inskrivningsdatum),
+        datum = as.Date(inskrivningsdatum),
         manad_namn = format(datum, "%B"),
         manad_sort = as.numeric(format(datum, "%m"))
       )
     
     # Använd summering_med_bef med extra grupperingsvariabel
     join_var <- if (vald_kommun() == "Alla") {
-      c("Kommunkod")
+      c("kommunkod")
     } else {
-      c("Kommunkod")
+      c("kommunkod")
     }
     
   
     df_manad <- summering_med_bef(
       df_manad_data, 
       indelning_namnkol,  # Bara denna för att funktionen ska fungera
-      bef_df %>% mutate(Kommunkod = if (vald_kommun() == "Alla") str_sub(Kommunkod, 1, 2) else Kommunkod), 
+      bef_df %>% mutate(kommunkod = if (vald_kommun() == "Alla") str_sub(kommunkod, 1, 2) else kommunkod), 
       input$val_ar,
       extra_grp_var = c("manad_namn", "manad_sort")
     )
@@ -1095,7 +1053,7 @@ shinyServer(function(input, output, session) {
         } else {
           .
         }
-      } %>% dplyr::pull(Brottskod)
+      } %>% dplyr::pull(brottskod)
     
     
     # Lägg till filtrering för vald kategori på max-nivå om sådan finns
@@ -1103,13 +1061,13 @@ shinyServer(function(input, output, session) {
     if (!is.null(kat_max)) {
       brottskoder_maxniva <- brott_niva_nyckel %>%
         filter(.data[[paste0(indelning, "_namn")]] == kat_max) %>%
-        pull(Brottskod)
+        pull(brottskod)
       
       brottskoder_filtrering <- intersect(brottskoder_filtrering, brottskoder_maxniva)
     }
     
     df_filtrering <- brottsdata %>% 
-      filter(Brottskod %in% brottskoder_filtrering)
+      filter(brottskod %in% brottskoder_filtrering)
     
     df_veckodag_data <- filtrera_data(df_filtrering, vald_kommun(), indelning, niva)
     df_veckodag_data <- filtrera_tidsperiod(df_veckodag_data, input$val_ar)
@@ -1122,7 +1080,7 @@ shinyServer(function(input, output, session) {
     # Skapa veckodagsdata med veckodagsvariabel
     df_veckodag_data <- df_veckodag_data %>%
       mutate(
-        datum = as.Date(Inskrivningsdatum),
+        datum = as.Date(inskrivningsdatum),
         veckodag = format(datum, "%A"),
         veckodag_nr = as.numeric(format(datum, "%u"))  # 1=måndag, 7=söndag
       )
@@ -1131,7 +1089,7 @@ shinyServer(function(input, output, session) {
     df_veckodag <- summering_med_bef(
       df_veckodag_data, 
       indelning_namnkol,
-      bef_df %>% mutate(Kommunkod = if (vald_kommun() == "Alla") str_sub(Kommunkod, 1, 2) else Kommunkod), 
+      bef_df %>% mutate(kommunkod = if (vald_kommun() == "Alla") str_sub(kommunkod, 1, 2) else kommunkod), 
       input$val_ar,
       extra_grp_var = c("veckodag", "veckodag_nr")
     ) %>%
@@ -1386,7 +1344,7 @@ shinyServer(function(input, output, session) {
              enhet == "Antal",
              !geografi %in% c("Dalarnas län", "Hela landet")) %>%
       group_by(ar, geografi) %>%
-      summarise(varde = sum(varde, na.rm = TRUE), enhet = first(enhet)) %>%
+      reframe(varde = sum(varde, na.rm = TRUE), enhet = first(enhet)) %>%
       mutate(etikett = paste0(enhet, " år ", ar, " i ", geografi, ": \n", format(round(varde,1), big.mark = " ")))      
     if (nrow(plot_data) == 0) return(girafe(ggobj = ggplot() + theme_void()))
     
