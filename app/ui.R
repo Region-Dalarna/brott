@@ -125,6 +125,9 @@ shinyUI(fluidPage(
           </p>
           <h3>Brottsförebyggande rådets kommunindikatorer</h3>
           Välj kommun, indikator för anmälda brott respektive för Nationella Trygghetsundersökningen (NTU).<br>
+          <br>
+          2025 års NTU visar 2024 års anmälda brott och självrapporterade utsatthet. Däremot gällande frågorna om självrapporterad otrygghet, oro <br>
+          och upplevda problem, redovisas resultaten för insamlingsåret och handlar om hur respondenterna upplever sin situation vid undersökningstillfället.<br><br>
           <ul>
           <li>För att ladda ner hela datasetet för alla kommuner i Dalarna i en Excelfil, klicka på <i>Ladda ner hela datasetet</i>.</li>
           <li>För att spara ett diagram, klicka på den blå ikonen högst uppe till höger i diagrammet. Den dyker upp när du har muspekaren över diagrammet.</li>
