@@ -3,6 +3,7 @@ name: Deploy brott
 on:
   push:
     branches: [ publicera ]
+  workflow_dispatch:
 
 jobs:
   deploy:
