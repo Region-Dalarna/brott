@@ -934,7 +934,9 @@ shinyServer(function(input, output, session) {
       mutate(
         datum = as.Date(inskrivningsdatum),
         manad_namn = format(datum, "%B"),
-        manad_sort = as.numeric(format(datum, "%m"))
+        manad_nr    = as.numeric(format(datum, "%m")),
+        ar          = format(datum, "%Y"),
+        armanad     = format(datum, "%Y%m")   # för korrekt kronologisk sortering
       )
 
     # Använd summering_med_bef med extra grupperingsvariabel
@@ -950,24 +952,29 @@ shinyServer(function(input, output, session) {
       indelning_namnkol,  # Bara denna för att funktionen ska fungera
       bef_df %>% mutate(kommunkod = if (vald_kommun() == "Alla") str_sub(kommunkod, 1, 2) else kommunkod),
       input$val_ar,
-      extra_grp_var = c("manad_namn", "manad_sort")
+      extra_grp_var = c("manad_namn", "manad_nr", "ar", "armanad")
     )
 
     df_manad <- df_manad %>%
-      group_by(manad_namn, manad_sort) %>%
+      group_by(manad_namn, manad_nr, ar, armanad) %>%
       summarise(
         antal_brott = sum(antal_brott, na.rm = TRUE),
         bef = sum(bef, na.rm = TRUE),
         .groups = "drop"
       ) %>%
       mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA)) %>%
-      arrange(manad_sort) %>%
+      arrange(armanad) %>%
       mutate(
-        manad_namn = factor(manad_namn, levels = unique(manad_namn)),
-        etikett = paste0(
-          str_to_sentence(manad_namn), "<br>",
-          format(round(brott_per_100k), big.mark = " "), " per 100 000 inv", "<br>",
-          paste0(format(antal_brott, big.mark = " "), " brott totalt")
+        # Visa år på första månaden i sekvensen, och sedan varje gång januari dyker upp
+        visa_ar     = manad_nr == 1 | row_number() == 1,
+        x_etikett   = ifelse(visa_ar,
+                             paste0(str_to_sentence(manad_namn), "\n", ar),
+                             str_to_sentence(manad_namn)),
+        x_etikett   = factor(x_etikett, levels = unique(x_etikett)),
+        etikett     = paste0(
+          str_to_sentence(manad_namn), " ", ar, "<br>",
+          format(round(brott_per_100k), big.mark = " "), " per 100 000 inv<br>",
+          format(antal_brott, big.mark = " "), " brott totalt"
         )
       )
 
@@ -983,10 +990,10 @@ shinyServer(function(input, output, session) {
     geo_txt <- if (is.null(vald_deso_namn())) geografi_text() else vald_deso_namn()
     titel <- paste0(brottkategori, " per månad ", geo_txt, " ", tidsperiod_text())
 
-    p <- ggplot(df_manad, aes(x = manad_namn, y = brott_per_100k, group = 1)) +
+    p <- ggplot(df_manad, aes(x = x_etikett, y = brott_per_100k, group = 1)) +
       geom_line(color = "#3182bd", linewidth = 1) +
       geom_point_interactive(
-        aes(tooltip = etikett, data_id = manad_namn),
+        aes(tooltip = etikett, data_id = x_etikett),
         color = "#3182bd",
         size = 2
       ) +
