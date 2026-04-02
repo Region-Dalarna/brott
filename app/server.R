@@ -104,7 +104,7 @@ summering_med_bef <- function(df, join_var, bef_df, period, extra_grp_var = NULL
       group_by(år, across(all_of(join_geo))) %>%
       summarise(antal_manader = n_distinct(månad), .groups = "drop") %>%
       left_join(bef_df, by = c("år", join_geo)) %>%
-      mutate(viktad_bef = (bef / 12) * 12)
+      mutate(viktad_bef = (bef / 12) * antal_manader)
 
     # Summera viktad befolkning per geografi (inte per extra grupperingsvariabler)
     viktad_bef_df <- manader_per_ar %>%
@@ -940,17 +940,21 @@ shinyServer(function(input, output, session) {
       )
 
     # Använd summering_med_bef med extra grupperingsvariabel
-    join_var <- if (vald_kommun() == "Alla") {
-      c("kommunkod")
-    } else {
-      c("kommunkod")
-    }
+    # Bestäm geografisk join-variabel beroende på kartnivå
+    geo_join_var <- if (kartniva() == "deso") "desokod" else "kommunkod"
 
+    bef_for_manad <- if (vald_kommun() == "Alla") {
+      bef_df %>%
+        group_by(år, kommunkod) %>%
+        summarise(bef = sum(bef, na.rm = TRUE), .groups = "drop")
+    } else {
+      bef_df %>% filter(kommunkod == unique(df_manad_data$kommunkod))
+    }
 
     df_manad <- summering_med_bef(
       df_manad_data,
-      indelning_namnkol,  # Bara denna för att funktionen ska fungera
-      bef_df %>% mutate(kommunkod = if (vald_kommun() == "Alla") str_sub(kommunkod, 1, 2) else kommunkod),
+      c(geo_join_var, indelning_namnkol),
+      bef_for_manad,
       input$val_ar,
       extra_grp_var = c("manad_namn", "manad_nr", "ar", "armanad")
     )
@@ -962,6 +966,7 @@ shinyServer(function(input, output, session) {
         bef = sum(bef, na.rm = TRUE),
         .groups = "drop"
       ) %>%
+      #mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 12 * 100000), NA)) %>%          # årstakt
       mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA)) %>%
       arrange(armanad) %>%
       mutate(
@@ -973,8 +978,9 @@ shinyServer(function(input, output, session) {
         x_etikett   = factor(x_etikett, levels = unique(x_etikett)),
         etikett     = paste0(
           str_to_sentence(manad_namn), " ", ar, "<br>",
-          format(round(brott_per_100k), big.mark = " "), " per 100 000 inv<br>",
-          format(antal_brott, big.mark = " "), " brott totalt"
+          #format(round(brott_per_100k), big.mark = " "), " per 100 000 inv<br>",
+          #format(antal_brott, big.mark = " "), " brott totalt"
+          format(antal_brott, big.mark = " "), " brott"
         )
       )
 
@@ -990,7 +996,7 @@ shinyServer(function(input, output, session) {
     geo_txt <- if (is.null(vald_deso_namn())) geografi_text() else vald_deso_namn()
     titel <- paste0(brottkategori, " per månad ", geo_txt, " ", tidsperiod_text())
 
-    p <- ggplot(df_manad, aes(x = x_etikett, y = brott_per_100k, group = 1)) +
+    p <- ggplot(df_manad, aes(x = x_etikett, y = antal_brott, group = 1)) +
       geom_line(color = "#3182bd", linewidth = 1) +
       geom_point_interactive(
         aes(tooltip = etikett, data_id = x_etikett),
@@ -1001,7 +1007,8 @@ shinyServer(function(input, output, session) {
         breaks = scales::pretty_breaks(n = 5),
         labels = function(x) format(x, big.mark = " ", scientific = FALSE)
       ) +
-      labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
+      #labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
+      labs(x = NULL, y = "Antal brott", title = titel) +
       theme_minimal(base_size = 10) +
       theme(
         plot.title = element_text(
@@ -1093,10 +1100,20 @@ shinyServer(function(input, output, session) {
       )
 
     # Använd summering_med_bef med extra grupperingsvariabel
+    geo_join_var <- if (kartniva() == "deso") "desokod" else "kommunkod"
+
+    bef_for_veckodag <- if (vald_kommun() == "Alla") {
+      bef_df %>%
+        group_by(år, kommunkod) %>%
+        summarise(bef = sum(bef, na.rm = TRUE), .groups = "drop")
+    } else {
+      bef_df %>% filter(kommunkod == unique(df_veckodag_data$kommunkod))
+    }
+
     df_veckodag <- summering_med_bef(
       df_veckodag_data,
-      indelning_namnkol,
-      bef_df %>% mutate(kommunkod = if (vald_kommun() == "Alla") str_sub(kommunkod, 1, 2) else kommunkod),
+      c(geo_join_var, indelning_namnkol),
+      bef_for_veckodag,
       input$val_ar,
       extra_grp_var = c("veckodag", "veckodag_nr")
     ) %>%
@@ -1106,14 +1123,16 @@ shinyServer(function(input, output, session) {
         bef = sum(bef, na.rm = TRUE),
         .groups = "drop"
       ) %>%
+      #mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * (365/7) * 100000), NA)) %>%         # årstakt
       mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA)) %>%
       arrange(veckodag_nr) %>%
       mutate(
         veckodag = factor(veckodag, levels = unique(veckodag)),
         etikett = paste0(
           str_to_sentence(veckodag), "<br>",
-          format(round(brott_per_100k), big.mark = " "), " per 100 000 inv", "<br>",
-          paste0(format(antal_brott, big.mark = " "), " brott totalt")
+          #format(round(brott_per_100k), big.mark = " "), " per 100 000 inv", "<br>",
+          #paste0(format(antal_brott, big.mark = " "), " brott totalt")
+          paste0(format(antal_brott, big.mark = " "), " brott")
         )
       )
 
@@ -1127,7 +1146,7 @@ shinyServer(function(input, output, session) {
     geo_txt <- if (is.null(vald_deso_namn())) geografi_text() else vald_deso_namn()
     titel <- paste0(brottkategori, " per veckodag", " ", geo_txt, " ", tidsperiod_text())
 
-    p <- ggplot(df_veckodag, aes(x = veckodag, y = brott_per_100k)) +
+    p <- ggplot(df_veckodag, aes(x = veckodag, y = antal_brott)) +
       geom_col_interactive(
         aes(tooltip = etikett, data_id = veckodag),
         fill = "#3182bd"
@@ -1136,7 +1155,8 @@ shinyServer(function(input, output, session) {
         breaks = scales::pretty_breaks(n = 5),
         labels = function(x) format(x, big.mark = " ", scientific = FALSE)
       ) +
-      labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
+      #labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
+      labs(x = NULL, y = "Antal brott", title = titel) +
       theme_minimal(base_size = 10) +
       theme(
         plot.title = element_text(
