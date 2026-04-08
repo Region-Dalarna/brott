@@ -6,7 +6,15 @@ library(shinyjs)
 
 shinyUI(fluidPage(
   tags$head(
-    tags$link(rel = 'icon', type = 'image/x-icon', href = 'favicon.ico')
+    tags$link(rel = 'icon', type = 'image/x-icon', href = 'favicon.ico'),
+    tags$style(HTML("
+      .leaflet-tooltip {
+      z-index: 1000 !important;
+    }
+    .leaflet-control {
+      z-index: 900 !important;
+    }
+  "))
   ),
   useShinyjs(),
   titlePanel("Brottsförebyggande arbete i Dalarna"),
