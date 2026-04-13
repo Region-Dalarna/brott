@@ -38,20 +38,32 @@ shinyUI(fluidPage(
       width = 4,
       selectInput(
         inputId = "val_indelning",
-        label = "Brottsindelning",
-        choices = names(brott_niva_nyckel) %>%
-          .[str_detect(., "_namn")] %>%
-          str_remove("_namn"),
-        selected = 1
-      )),
+        label = "brottsindelning",
+        choices = NULL
+      )
+      # selectInput(
+      #   inputId = "val_indelning",
+      #   label = "Brottsindelning",
+      #   choices = names(brott_niva_nyckel) %>%
+      #     .[str_detect(., "_namn")] %>%
+      #     str_remove("_namn"),
+      #   selected = 1
+      # )
+      ),
   column(                    # Listruta för år
     width = 4,
     selectInput(
       inputId = "val_ar",
       label = "Välj tidsperiod:",
-      choices = c("Senaste 12 månaderna", rev(sort(unique(format(brottsdata$inskrivningsdatum, "%Y"))))),
-      selected = "Senaste 12 månaderna"
-    ))
+      choices = NULL
+    )
+    # selectInput(
+    #   inputId = "val_ar",
+    #   label = "Välj tidsperiod:",
+    #   choices = c("Senaste 12 månaderna", rev(sort(unique(format(brottsdata$inskrivningsdatum, "%Y"))))),
+    #   selected = "Senaste 12 månaderna"
+    # )
+    )
   ),
   br(),
 
