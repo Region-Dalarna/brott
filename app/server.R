@@ -21,7 +21,27 @@ filtrera_data <- function(df, kommun, indelning, niva, brott_niva_nyckel_df) {
   return(df)
 }
 
-filtrera_tidsperiod <- function(df, period) {
+format_armanad <- function(armanad) {
+  # "202203" -> "mar 2022"
+  if (is.null(armanad) || is.na(armanad) || armanad == "") return("")
+  d <- as.Date(paste0(armanad, "01"), "%Y%m%d")
+  if (is.na(d)) return(as.character(armanad))
+  paste0(format(d, "%b"), " ", format(d, "%Y"))
+}
+
+filtrera_tidsperiod <- function(df, period, fran = NULL, till = NULL) {
+  if (period == "Hela perioden") {
+    # Ingen filtrering - returnera all data
+    return(df)
+  }
+
+  if (period == "Anpassad period…") {
+    if (is.null(fran) || is.null(till) || fran == "" || till == "") return(df)
+    rng <- sort(c(fran, till))
+    df <- df %>% filter(`inskr årmånad` >= rng[1], `inskr årmånad` <= rng[2])
+    return(df)
+  }
+
   if (period == "Senaste 12 månaderna") {
 
     # Hämta senaste årmånad i datan
@@ -94,13 +114,15 @@ summering_med_bef <- function(df, join_var, bef_df, period, extra_grp_var = NULL
 
   if (period == "Senaste 12 månaderna") {
     # Beräkna viktad befolkning baserat på antal månader per år
-    senaste_datum <- max(as.Date(df$inskrivningsdatum))
-    start_datum <- senaste_datum %m-% months(11)
+    # Använd den färdiga "inskr årmånad"-kolumnen istället för att parsa datum på nytt
+    senaste_armanad <- max(df$`inskr årmånad`, na.rm = TRUE)
+    senaste_datum <- as.Date(paste0(senaste_armanad, "01"), "%Y%m%d")
+    start_armanad <- format(senaste_datum %m-% months(11), "%Y%m")
 
     manader_per_ar <- df %>%
-      filter(inskrivningsdatum >= start_datum) %>%
-      mutate(år = as.character(format(inskrivningsdatum, "%Y")),
-             månad = as.character(format(inskrivningsdatum, "%m"))) %>%
+      filter(`inskr årmånad` >= start_armanad) %>%
+      mutate(år = str_sub(`inskr årmånad`, 1, 4),
+             månad = str_sub(`inskr årmånad`, 5, 6)) %>%
       group_by(år, across(all_of(join_geo))) %>%
       summarise(antal_manader = n_distinct(månad), .groups = "drop") %>%
       left_join(bef_df, by = c("år", join_geo)) %>%
@@ -114,6 +136,21 @@ summering_med_bef <- function(df, join_var, bef_df, period, extra_grp_var = NULL
     # Join tillbaka endast på geografi
     df_sum <- df_sum %>%
       left_join(viktad_bef_df, by = join_geo) %>%
+      mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA))
+
+  } else if (period == "Hela perioden" || period == "Anpassad period…") {
+    # Hela perioden / anpassad period: använd summan av befolkningen för alla år som finns i datan
+    # (dvs. person-år) som nämnare, så får vi ett genomsnittligt årligt antal per 100k
+    # Optimerat: använd färdig "inskr år"-kolumn istället för att re-parsa datum per rad
+    ar_i_data <- unique(as.character(df$`inskr år`))
+
+    bef_for_join <- bef_df %>%
+      filter(år %in% ar_i_data) %>%
+      group_by(across(all_of(join_geo))) %>%
+      summarise(bef = sum(bef, na.rm = TRUE), .groups = "drop")
+
+    df_sum <- df_sum %>%
+      left_join(bef_for_join, by = join_geo) %>%
       mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA))
 
   } else {
@@ -209,9 +246,22 @@ shinyServer(function(input, output, session) {
     updateSelectInput(
       session,
       "val_ar",
-      choices = c("Senaste 12 månaderna", ar),
+      choices = c("Senaste 12 månaderna", "Hela perioden", "Anpassad period…", ar),
       selected = "Senaste 12 månaderna"
     )
+
+    # YYYY-MM-valen för "Anpassad period…"
+    armanader <- sort(unique(format(brottsdata()$inskrivningsdatum, "%Y%m")))
+    if (length(armanader) > 0) {
+      etiketter <- vapply(armanader, format_armanad, character(1))
+      val_vec <- setNames(armanader, etiketter)
+      updateSelectInput(session, "anpassad_fran",
+                        choices = val_vec,
+                        selected = armanader[1])
+      updateSelectInput(session, "anpassad_till",
+                        choices = val_vec,
+                        selected = armanader[length(armanader)])
+    }
   })
 
   # för att använda i kart- och diagramrubriker, Dalarna eller vald kommun
@@ -246,6 +296,11 @@ shinyServer(function(input, output, session) {
   tidsperiod_text <- reactive({
     if (input$val_ar == "Senaste 12 månaderna") {
       "de senaste 12 månaderna"
+    } else if (input$val_ar == "Hela perioden") {
+      "hela perioden"
+    } else if (input$val_ar == "Anpassad period…") {
+      req(input$anpassad_fran, input$anpassad_till)
+      paste0(format_armanad(input$anpassad_fran), "–", format_armanad(input$anpassad_till))
     } else {
       paste0("år ", input$val_ar)
     }
@@ -254,6 +309,11 @@ shinyServer(function(input, output, session) {
   tidsperiod_text_karta <- reactive({
     if (input$val_ar == "Senaste 12 månaderna") {
       "sen 12 mån"
+    } else if (input$val_ar == "Hela perioden") {
+      "hela perioden"
+    } else if (input$val_ar == "Anpassad period…") {
+      req(input$anpassad_fran, input$anpassad_till)
+      paste0(format_armanad(input$anpassad_fran), "–", format_armanad(input$anpassad_till))
     } else {
       paste0("år ", input$val_ar)
     }
@@ -386,7 +446,7 @@ shinyServer(function(input, output, session) {
       ))
     }
 
-    df <- filtrera_tidsperiod(df, input$val_ar)                                 # filtrera på tidsperiod
+    df <- filtrera_tidsperiod(df, input$val_ar, input$anpassad_fran, input$anpassad_till)                                 # filtrera på tidsperiod
     df_sum <- summering_med_bef(df, join_var, bef_df, input$val_ar, brott_niva_nyckel_df = brott_niva_nyckel())             # summera ihop antal brott och beräkna brott per 100k invånare
 
     # Slå ihop och behåll join_namn kolumnen
@@ -488,18 +548,30 @@ shinyServer(function(input, output, session) {
       addLegend(
         "bottomleft", pal = pal, values = ~brott_per_100k,
         title = legend_titel,
-        labFormat = labelFormat(big.mark = " ", digits = 0)
+        labFormat = labelFormat(big.mark = " ", digits = 0),
+        className = "info legend kompakt-legend"
       ) %>%
       addControl(label_for_map(),
                  position = "topright",
                  className = "map-filter-text")
 
-    # styr zoom-nivån - olika för kommun/DeSO och init/uppdatering
+    # Styr zoom-nivån.
+    # Asymmetrisk padding: mer luft till vänster så att polygonerna förskjuts
+    # åt höger (bort från teckenförklaringen). Vi krymper också bbox något så
+    # att polygonerna fyller en större del av kartan.
+    bbox_w <- bbox[["xmax"]] - bbox[["xmin"]]
+    bbox_h <- bbox[["ymax"]] - bbox[["ymin"]]
 
     kartobj <- kartobj %>%
       fitBounds(
-        lng1 = bbox[["xmin"]], lat1 = bbox[["ymin"]],
-        lng2 = bbox[["xmax"]], lat2 = bbox[["ymax"]]
+        lng1 = bbox[["xmin"]] + bbox_w * 0.04,
+        lat1 = bbox[["ymin"]] + bbox_h * 0.04,
+        lng2 = bbox[["xmax"]] - bbox_w * 0.04,
+        lat2 = bbox[["ymax"]] - bbox_h * 0.04,
+        options = list(
+          paddingTopLeft     = c(80, 5),
+          paddingBottomRight = c(5, 5)
+        )
       )
 
     # hantering av hus-ikonen, dvs. gå tillbaka till kommunnivå
@@ -655,19 +727,19 @@ shinyServer(function(input, output, session) {
 
     # skapa en vektor med alla brottskoder i
     brottskoder_filtrering <- brott_niva_nyckel() %>%
-    {
-      if (length(rubrik_brott_niva()) > 0) {
-        filter(., .data[[paste0(indelning, "_namn")]] == rubrik_brott_niva()[length(rubrik_brott_niva())])
-      } else {
-        .
-      }
-    } %>% dplyr::pull(brottskod)
+      {
+        if (length(rubrik_brott_niva()) > 0) {
+          filter(., .data[[paste0(indelning, "_namn")]] == rubrik_brott_niva()[length(rubrik_brott_niva())])
+        } else {
+          .
+        }
+      } %>% dplyr::pull(brottskod)
 
     df_filtrering <- brottsdata() %>%
       filter(brottskod %in% brottskoder_filtrering)
 
     df_visa <- filtrera_data(df_filtrering, kommun, indelning, visa_niva, brott_niva_nyckel())
-    df_visa <- filtrera_tidsperiod(df_visa, input$val_ar)
+    df_visa <- filtrera_tidsperiod(df_visa, input$val_ar, input$anpassad_fran, input$anpassad_till)
 
     # Filtrera på vald DeSO om vi är på DeSO-nivå
     if (kartniva() == "deso" && !is.null(vald_deso())) {
@@ -732,10 +804,15 @@ shinyServer(function(input, output, session) {
       labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel, subtitle = undertitel) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_text(
-          size = 12, lineheight = 1.1, face = "bold", margin = margin(b = 10)
+        plot.title = element_textbox_simple(
+          size = 12, lineheight = 1.1, face = "bold",
+          margin = margin(b = 6),
+          width = unit(1, "npc")
         ),
-        plot.subtitle = element_text(size = 10, margin = margin(b = 10)),
+        plot.subtitle = element_textbox_simple(
+          size = 10, margin = margin(b = 8),
+          width = unit(1, "npc")
+        ),
         plot.margin = margin(t = 10, r = 10, b = 5, l = 10),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         legend.position = "none"
@@ -743,9 +820,10 @@ shinyServer(function(input, output, session) {
 
     girafe(
       ggobj = p,
-      width_svg = 9,
+      width_svg = 6,
       height_svg = 4,
       options = list(
+        opts_sizing(rescale = TRUE, width = 1),
         opts_hover(css = "stroke-width:2;stroke:black;cursor:pointer;"),  # ändra bara kant + pekare
         opts_selection(type = "single", only_shiny = TRUE)
       )
@@ -876,11 +954,12 @@ shinyServer(function(input, output, session) {
       labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_text(
+        plot.title = element_textbox_simple(
           size = 12,
           lineheight = 1.1,
           face = "bold",
-          margin = margin(b = 10)
+          margin = margin(b = 8),
+          width = unit(1, "npc")
         ),
         plot.margin = margin(t = 10, r = 10, b = 5, l = 10),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
@@ -889,9 +968,10 @@ shinyServer(function(input, output, session) {
 
     girafe(
       ggobj = p,
-      width_svg = 9,
+      width_svg = 6,
       height_svg = 4,
       options = list(
+        opts_sizing(rescale = TRUE, width = 1),
         opts_hover(css = "stroke-width:2;stroke:black;cursor:pointer;"),  # ändra bara kant + pekare
         opts_selection(type = "single", only_shiny = TRUE)
       ))
@@ -996,7 +1076,7 @@ shinyServer(function(input, output, session) {
       filter(brottskod %in% brottskoder_filtrering)
 
     df_manad_data <- filtrera_data(df_filtrering, vald_kommun(), indelning, niva, brott_niva_nyckel())
-    df_manad_data <- filtrera_tidsperiod(df_manad_data, input$val_ar)
+    df_manad_data <- filtrera_tidsperiod(df_manad_data, input$val_ar, input$anpassad_fran, input$anpassad_till)
 
     # Filtrera på vald DeSO om det finns
     if (kartniva() == "deso" && !is.null(vald_deso())) {
@@ -1004,14 +1084,20 @@ shinyServer(function(input, output, session) {
     }
 
     # Skapa månadsdata med månadsvariabel
-    df_manad_data <- df_manad_data %>%
+    # Optimerat: parsa datum bara på unika årmånad-värden, inte per rad
+    manad_lookup <- df_manad_data %>%
+      distinct(`inskr årmånad`) %>%
       mutate(
-        datum = as.Date(inskrivningsdatum),
-        manad_namn = format(datum, "%B"),
-        manad_nr    = as.numeric(format(datum, "%m")),
-        ar          = format(datum, "%Y"),
-        armanad     = format(datum, "%Y%m")   # för korrekt kronologisk sortering
-      )
+        datum_lookup = as.Date(paste0(`inskr årmånad`, "01"), "%Y%m%d"),
+        manad_namn   = format(datum_lookup, "%B"),
+        manad_nr     = as.numeric(format(datum_lookup, "%m")),
+        ar           = format(datum_lookup, "%Y"),
+        armanad      = `inskr årmånad`
+      ) %>%
+      select(-datum_lookup)
+
+    df_manad_data <- df_manad_data %>%
+      left_join(manad_lookup, by = "inskr årmånad")
 
     # Använd summering_med_bef med extra grupperingsvariabel
     # Bestäm geografisk join-variabel beroende på kartnivå
@@ -1045,19 +1131,42 @@ shinyServer(function(input, output, session) {
       mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA)) %>%
       arrange(armanad) %>%
       mutate(
-        # Visa år på första månaden i sekvensen, och sedan varje gång januari dyker upp
-        visa_ar     = manad_nr == 1 | row_number() == 1,
-        x_etikett   = ifelse(visa_ar,
-                             paste0(str_to_sentence(manad_namn), "\n", ar),
-                             str_to_sentence(manad_namn)),
-        x_etikett   = factor(x_etikett, levels = unique(x_etikett)),
-        etikett     = paste0(
+        # Använd armanad (YYYYMM) som faktor så varje månad får en unik x-position
+        # även när samma månadsnamn förekommer flera år i rad
+        x_etikett = factor(armanad, levels = unique(armanad)),
+        etikett   = paste0(
           str_to_sentence(manad_namn), " ", ar, "<br>",
-          #format(round(brott_per_100k), big.mark = " "), " per 100 000 inv<br>",
-          #format(antal_brott, big.mark = " "), " brott totalt"
           format(antal_brott, big.mark = " "), " brott"
         )
       )
+
+    # Bestäm hur tätt etiketter ska visas beroende på antal månader
+    n_manader <- nrow(df_manad)
+    if (n_manader <= 12) {
+      # Upp till 12 månader: visa varje månad, lägg till år på första och vid januari
+      df_manad <- df_manad %>%
+        mutate(x_label = ifelse(manad_nr == 1 | row_number() == 1,
+                                paste0(str_to_sentence(manad_namn), "\n", ar),
+                                str_to_sentence(manad_namn)))
+    } else if (n_manader <= 24) {
+      # 13–24 månader: visa varannan månad samt alltid januari
+      df_manad <- df_manad %>%
+        mutate(
+          visa = manad_nr == 1 | row_number() == 1 | (row_number() %% 2 == 0),
+          x_label = ifelse(manad_nr == 1 | row_number() == 1,
+                           paste0(str_to_sentence(manad_namn), "\n", ar),
+                           ifelse(visa, str_to_sentence(manad_namn), ""))
+        )
+    } else {
+      # Fler än 24 månader: visa bara året vid januari, övriga tomma
+      df_manad <- df_manad %>%
+        mutate(x_label = ifelse(manad_nr == 1 | row_number() == 1,
+                                ar,
+                                ""))
+    }
+
+    # Bygg etikettvektor: armanad -> x_label
+    x_labels_vec <- setNames(df_manad$x_label, df_manad$armanad)
 
     # Skydd mot tom data
     if (nrow(df_manad) == 0) {
@@ -1078,6 +1187,7 @@ shinyServer(function(input, output, session) {
         color = "#3182bd",
         size = 2
       ) +
+      scale_x_discrete(labels = x_labels_vec) +
       scale_y_continuous(
         breaks = scales::pretty_breaks(n = 5),
         labels = function(x) format(x, big.mark = " ", scientific = FALSE)
@@ -1086,22 +1196,24 @@ shinyServer(function(input, output, session) {
       labs(x = NULL, y = "Antal brott", title = titel) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_text(
+        plot.title = element_textbox_simple(
           size = 12,
           lineheight = 1.1,
           face = "bold",
-          margin = margin(b = 10)
+          margin = margin(b = 8),
+          width = unit(1, "npc")
         ),
-        plot.margin = margin(t = 20, r = 10, b = 10, l = 10),
+        plot.margin = margin(t = 12, r = 10, b = 8, l = 10),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         legend.position = "none"
       )
 
     girafe(
       ggobj = p,
-      width_svg = 9,
+      width_svg = 6,
       height_svg = 4,
       options = list(
+        opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
         opts_hover(css = "stroke-width:0;fill-opacity:1;cursor:default;"),
         opts_selection(type = "none")
@@ -1159,7 +1271,7 @@ shinyServer(function(input, output, session) {
       filter(brottskod %in% brottskoder_filtrering)
 
     df_veckodag_data <- filtrera_data(df_filtrering, vald_kommun(), indelning, niva, brott_niva_nyckel())
-    df_veckodag_data <- filtrera_tidsperiod(df_veckodag_data, input$val_ar)
+    df_veckodag_data <- filtrera_tidsperiod(df_veckodag_data, input$val_ar, input$anpassad_fran, input$anpassad_till)
 
     # Filtrera på vald DeSO om det finns
     if (kartniva() == "deso" && !is.null(vald_deso())) {
@@ -1167,12 +1279,18 @@ shinyServer(function(input, output, session) {
     }
 
     # Skapa veckodagsdata med veckodagsvariabel
-    df_veckodag_data <- df_veckodag_data %>%
+    # Optimerat: parsa datum bara på unika datum, inte per rad
+    veckodag_lookup <- df_veckodag_data %>%
+      distinct(inskrivningsdatum) %>%
       mutate(
-        datum = as.Date(inskrivningsdatum),
-        veckodag = format(datum, "%A"),
-        veckodag_nr = as.numeric(format(datum, "%u"))  # 1=måndag, 7=söndag
-      )
+        datum_lookup = as.Date(inskrivningsdatum),
+        veckodag     = format(datum_lookup, "%A"),
+        veckodag_nr  = as.numeric(format(datum_lookup, "%u"))
+      ) %>%
+      select(-datum_lookup)
+
+    df_veckodag_data <- df_veckodag_data %>%
+      left_join(veckodag_lookup, by = "inskrivningsdatum")
 
     # Använd summering_med_bef med extra grupperingsvariabel
     geo_join_var <- if (kartniva() == "deso") "desokod" else "kommunkod"
@@ -1235,11 +1353,12 @@ shinyServer(function(input, output, session) {
       labs(x = NULL, y = "Antal brott", title = titel) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_text(
+        plot.title = element_textbox_simple(
           size = 12,
           lineheight = 1.1,
           face = "bold",
-          margin = margin(b = 10)
+          margin = margin(b = 8),
+          width = unit(1, "npc")
         ),
         plot.margin = margin(t = 10, r = 10, b = 5, l = 10),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
@@ -1248,9 +1367,10 @@ shinyServer(function(input, output, session) {
 
     girafe(
       ggobj = p,
-      width_svg = 9,
+      width_svg = 6,
       height_svg = 4,
       options = list(
+        opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
         opts_hover(css = "stroke-width:0;fill-opacity:1;cursor:default;"),
         opts_selection(type = "none")
@@ -1285,7 +1405,7 @@ shinyServer(function(input, output, session) {
 
   # Uppdatera kommun-listrutan med alla unika kommuner
   observeEvent(bra_kommunindikatorer(), {
-     updateSelectInput(session, "kommun",
+    updateSelectInput(session, "kommun",
                       choices = sort(unique(bra_kommunindikatorer()$geografi)),
                       selected = "Dalarnas län")
   }, ignoreInit = TRUE)
@@ -1375,9 +1495,11 @@ shinyServer(function(input, output, session) {
            color = NULL) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_text(
-          size = 12, lineheight = 1.1, face = "bold", margin = margin(b = 10)),
-        plot.margin = margin(t = 20, r = 10, b = 10, l = 10),
+        plot.title = element_textbox_simple(
+          size = 12, lineheight = 1.1, face = "bold",
+          margin = margin(b = 8),
+          width = unit(1, "npc")),
+        plot.margin = margin(t = 12, r = 10, b = 8, l = 10),
         axis.title.y = element_textbox_simple(
           #size = diagram_titel_storlek,
           orientation = "left-rotated",
@@ -1389,9 +1511,10 @@ shinyServer(function(input, output, session) {
 
     girafe(
       ggobj = p,
-      width_svg = 9,
+      width_svg = 6,
       height_svg = 4,
       options = list(
+        opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
         opts_hover(css = "stroke-width:0;fill-opacity:1;cursor:default;"),
         opts_selection(type = "none")
@@ -1437,17 +1560,20 @@ shinyServer(function(input, output, session) {
            title = paste0(input$variabel_anm, " i ", input$kommun, " (Antal per 100 000 inv)")) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_text(
-          size = 12, lineheight = 1.1, face = "bold", margin = margin(b = 10)),
-        plot.margin = margin(t = 20, r = 10, b = 10, l = 10),
+        plot.title = element_textbox_simple(
+          size = 12, lineheight = 1.1, face = "bold",
+          margin = margin(b = 8),
+          width = unit(1, "npc")),
+        plot.margin = margin(t = 12, r = 10, b = 8, l = 10),
         axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10)
       )
 
     girafe(
       ggobj = p,
-      width_svg = 9,
+      width_svg = 6,
       height_svg = 4,
       options = list(
+        opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
         opts_hover(css = "stroke-width:0;fill-opacity:1;cursor:default;"),
         opts_selection(type = "none")
@@ -1478,11 +1604,15 @@ shinyServer(function(input, output, session) {
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = "År", y = "Antal", title = paste0(input$variabel_anm, " i ", input$kommun, " (Antal)")) +
       theme_minimal(base_size = 10) +
-      theme(plot.title = element_text(size = 12, face = "bold", margin = margin(b = 10)),
-            axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10))
+      theme(plot.title = element_textbox_simple(
+        size = 12, face = "bold",
+        margin = margin(b = 8),
+        width = unit(1, "npc")),
+        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10))
 
-    girafe(ggobj = p, width_svg = 9, height_svg = 4,
-           options = list(opts_hover_inv(css = "opacity:1;"),
+    girafe(ggobj = p, width_svg = 6, height_svg = 4,
+           options = list(opts_sizing(rescale = TRUE, width = 1),
+                          opts_hover_inv(css = "opacity:1;"),
                           opts_hover(css = "stroke-width:0;fill-opacity:1;cursor:default;"),
                           opts_selection(type = "none")))
   })
