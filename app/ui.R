@@ -40,20 +40,49 @@ shinyUI(fluidPage(
       /* ---- Layout för Polisstatistik-fliken ---- */
       .polisstat-layout #karta_brott { height: 70vh !important; }
       .polisstat-layout .diagram-cell {
-        height: 32vh;
-        min-height: 220px;
+        height: 35vh;
+        min-height: 240px;
+      }
+      /* Karta lite smalare så diagrammen får mer plats */
+      @media (min-width: 992px) {
+        .polisstat-layout > .row > .col-sm-4 {
+          flex: 0 0 28%;
+          max-width: 28%;
+        }
+        .polisstat-layout > .row > .col-sm-8 {
+          flex: 0 0 72%;
+          max-width: 72%;
+        }
+      }
+      /* Lite vertikal luft ovanför översta diagramraden */
+      .polisstat-layout .col-sm-8 > .row:first-child {
+        margin-top: 10px;
+      }
+      /* Vertikal luft mellan översta och understa diagramraden */
+      .polisstat-layout .col-sm-8 > .row + .row {
+        margin-top: 18px;
       }
       .polisstat-layout .diagram-cell .girafe_container_std,
       .polisstat-layout .diagram-cell .html-widget {
         height: 100% !important;
         width: 100% !important;
       }
+      /* Tightare gutters mellan diagram-cellerna i 2x2-rutnätet */
+      .polisstat-layout .col-sm-6 {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+      }
+      .polisstat-layout .fluidRow,
+      .polisstat-layout .row {
+        margin-left: -4px;
+        margin-right: -4px;
+      }
       .polisstat-layout .diagram-toolbar {
         display: flex;
         align-items: flex-end;
         gap: 8px;
-        margin-bottom: 4px;
-        min-height: 60px;
+        margin-bottom: 12px;
+        min-height: 50px;
       }
       .polisstat-layout .diagram-toolbar > div { flex: 1; min-width: 0; }
       .polisstat-layout .diagram-toolbar .form-group { margin-bottom: 0; }
@@ -81,15 +110,23 @@ shinyUI(fluidPage(
         font-size: 12px;
       }
 
-      /* Snyggare nedladdningsknapp */
-      .polisstat-layout .karta-knapp { margin-top: 10px; }
+      /* Snyggare nedladdningsknappar - sida vid sida */
+      .polisstat-layout .karta-knapp {
+        margin-top: 10px;
+        display: flex;
+        gap: 6px;
+      }
       .polisstat-layout .karta-knapp .btn {
-        width: 100%;
+        flex: 1;
+        width: auto;
         background-color: #2c5aa0;
         color: #fff;
         border-color: #1e3f70;
         font-weight: 500;
-        padding: 8px 12px;
+        padding: 8px 10px;
+        font-size: 13px;
+        white-space: normal;
+        line-height: 1.2;
       }
       .polisstat-layout .karta-knapp .btn:hover {
         background-color: #1e3f70;
@@ -135,7 +172,8 @@ shinyUI(fluidPage(
                      width = 4,
                      leafletOutput("karta_brott", height = "70vh"),
                      div(class = "karta-knapp",
-                         downloadButton("export_excel", "Ladda ner hela datasetet", icon = icon("download"))
+                         downloadButton("export_excel", "Hela datasetet", icon = icon("download")),
+                         downloadButton("export_excel_urval", "Aktuellt urval", icon = icon("download"))
                      )
                    ),
                    # Höger: 2x2-rutnät med fyra diagram av samma storlek

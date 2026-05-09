@@ -168,8 +168,19 @@ summering_med_bef <- function(df, join_var, bef_df, period, extra_grp_var = NULL
   return(df_sum)
 }
 
+# ---- Källhänvisningar ----
+KALLA_POLISEN <- "Källa: Polisen, bearbetning av Samhällsanalys, Region Dalarna"
+KALLA_BRA     <- "Källa: Brottsförebyggande rådet (BRÅ), bearbetning av Samhällsanalys, Region Dalarna"
+
 # ---- Server ----
 shinyServer(function(input, output, session) {
+
+  # Visa laddningsmeddelande direkt när appen startar
+  showNotification("Data laddas, vänta lite…",
+                   id = "loading_msg",
+                   duration = NULL,
+                   closeButton = FALSE,
+                   type = "message")
 
   kartniva <- reactiveVal("kommun")                             # kartnivå i kartan kommun och deso, ska vi ha en till där vi tittar på enskilda deso?
   vald_kommun <- reactiveVal("Alla")                            # vald kommun i kartan
@@ -747,9 +758,11 @@ shinyServer(function(input, output, session) {
     }
 
     if (nrow(df_visa) == 0) {
-      return(girafe(ggobj = ggplot() + theme_void() +
-                      labs(title = "Ingen data för valt filter")))
+      return(girafe(ggobj = ggplot() + theme_void()))
     }
+
+    # Ta bort laddningsmeddelandet så fort vi har data att rendera
+    removeNotification("loading_msg")
 
     if (vald_kommun() == "Alla") {
       df_visa <- df_visa %>% mutate(kommunkod = str_sub(kommunkod, 1, 2))
@@ -784,6 +797,7 @@ shinyServer(function(input, output, session) {
 
     titel <- if (length(rubrik_brott_niva()) > 0) rubrik_brott_niva()[length(rubrik_brott_niva())] else "Alla brott"
     titel <- paste0(titel, " ", geo_txt, " ", tidsperiod_text())
+    titel <- str_wrap(titel, width = 60)
     undertitel <- paste0(indelning, " - Nivå ", visa_niva)
 
 
@@ -801,27 +815,31 @@ shinyServer(function(input, output, session) {
         labels = function(x) format(x, big.mark = " ", scientific = FALSE)
       ) +
       scale_x_discrete(labels = function(x) str_trunc(x, 25)) +
-      labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel, subtitle = undertitel) +
+      labs(x = NULL, y = "Antal brott per 100.000 inv",
+           title = titel, subtitle = undertitel,
+           caption = KALLA_POLISEN) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_textbox_simple(
+        plot.title = element_text(
           size = 12, lineheight = 1.1, face = "bold",
-          margin = margin(b = 6),
-          width = unit(1, "npc")
+          margin = margin(b = 4)
         ),
-        plot.subtitle = element_textbox_simple(
-          size = 10, margin = margin(b = 8),
-          width = unit(1, "npc")
+        plot.subtitle = element_text(
+          size = 10, margin = margin(b = 6)
         ),
-        plot.margin = margin(t = 10, r = 10, b = 5, l = 10),
+        plot.caption = element_text(
+          size = 8, color = "#666", hjust = 0,
+          margin = margin(t = 6)
+        ),
+        plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         legend.position = "none"
       )
 
     girafe(
       ggobj = p,
-      width_svg = 6,
-      height_svg = 4,
+      width_svg = 8,
+      height_svg = 5,
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover(css = "stroke-width:2;stroke:black;cursor:pointer;"),  # ändra bara kant + pekare
@@ -916,6 +934,7 @@ shinyServer(function(input, output, session) {
 
     # Skapa titel
     titel <- paste0(brottkategori, " per ", geo_niva_text, " ", geografi_text(), " ", tidsperiod_text())
+    titel <- str_wrap(titel, width = 60)
 
     # Förbered data för diagram
     df_diag <- geo_data$data %>%
@@ -951,25 +970,29 @@ shinyServer(function(input, output, session) {
         labels = function(x) format(x, big.mark = " ", scientific = FALSE)
       ) +
       scale_x_discrete(labels = function(x) str_trunc(x, 20)) +
-      labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
+      labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel,
+           caption = KALLA_POLISEN) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_textbox_simple(
+        plot.title = element_text(
           size = 12,
           lineheight = 1.1,
           face = "bold",
-          margin = margin(b = 8),
-          width = unit(1, "npc")
+          margin = margin(b = 6)
         ),
-        plot.margin = margin(t = 10, r = 10, b = 5, l = 10),
+        plot.caption = element_text(
+          size = 8, color = "#666", hjust = 0,
+          margin = margin(t = 6)
+        ),
+        plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         legend.position = "none"
       )
 
     girafe(
       ggobj = p,
-      width_svg = 6,
-      height_svg = 4,
+      width_svg = 8,
+      height_svg = 5,
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover(css = "stroke-width:2;stroke:black;cursor:pointer;"),  # ändra bara kant + pekare
@@ -1179,6 +1202,7 @@ shinyServer(function(input, output, session) {
     # om det finns ett vald_deso_namn() så används det, annars kommunnamn eller hela länet
     geo_txt <- if (is.null(vald_deso_namn())) geografi_text() else vald_deso_namn()
     titel <- paste0(brottkategori, " per månad ", geo_txt, " ", tidsperiod_text())
+    titel <- str_wrap(titel, width = 60)
 
     p <- ggplot(df_manad, aes(x = x_etikett, y = antal_brott, group = 1)) +
       geom_line(color = "#3182bd", linewidth = 1) +
@@ -1193,25 +1217,29 @@ shinyServer(function(input, output, session) {
         labels = function(x) format(x, big.mark = " ", scientific = FALSE)
       ) +
       #labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
-      labs(x = NULL, y = "Antal brott", title = titel) +
+      labs(x = NULL, y = "Antal brott", title = titel,
+           caption = KALLA_POLISEN) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_textbox_simple(
+        plot.title = element_text(
           size = 12,
           lineheight = 1.1,
           face = "bold",
-          margin = margin(b = 8),
-          width = unit(1, "npc")
+          margin = margin(b = 6)
         ),
-        plot.margin = margin(t = 12, r = 10, b = 8, l = 10),
+        plot.caption = element_text(
+          size = 8, color = "#666", hjust = 0,
+          margin = margin(t = 6)
+        ),
+        plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         legend.position = "none"
       )
 
     girafe(
       ggobj = p,
-      width_svg = 6,
-      height_svg = 4,
+      width_svg = 8,
+      height_svg = 5,
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
@@ -1339,6 +1367,7 @@ shinyServer(function(input, output, session) {
     # om det finns ett vald_deso_namn() så används det, annars kommunnamn eller hela länet
     geo_txt <- if (is.null(vald_deso_namn())) geografi_text() else vald_deso_namn()
     titel <- paste0(brottkategori, " per veckodag", " ", geo_txt, " ", tidsperiod_text())
+    titel <- str_wrap(titel, width = 60)
 
     p <- ggplot(df_veckodag, aes(x = veckodag, y = antal_brott)) +
       geom_col_interactive(
@@ -1350,25 +1379,29 @@ shinyServer(function(input, output, session) {
         labels = function(x) format(x, big.mark = " ", scientific = FALSE)
       ) +
       #labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
-      labs(x = NULL, y = "Antal brott", title = titel) +
+      labs(x = NULL, y = "Antal brott", title = titel,
+           caption = KALLA_POLISEN) +
       theme_minimal(base_size = 10) +
       theme(
-        plot.title = element_textbox_simple(
+        plot.title = element_text(
           size = 12,
           lineheight = 1.1,
           face = "bold",
-          margin = margin(b = 8),
-          width = unit(1, "npc")
+          margin = margin(b = 6)
         ),
-        plot.margin = margin(t = 10, r = 10, b = 5, l = 10),
+        plot.caption = element_text(
+          size = 8, color = "#666", hjust = 0,
+          margin = margin(t = 6)
+        ),
+        plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         legend.position = "none"
       )
 
     girafe(
       ggobj = p,
-      width_svg = 6,
-      height_svg = 4,
+      width_svg = 8,
+      height_svg = 5,
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
@@ -1387,6 +1420,130 @@ shinyServer(function(input, output, session) {
 
       # Skriv till Excel
       write_xlsx(brottsdata(), file)
+    }
+  )
+
+  # spara excelfil med aktuellt urval, aggregerat på brott (aktuell nivå),
+  # geografi (aktuell nivå), månad och veckodag
+  output$export_excel_urval <- downloadHandler(
+    filename = function() {
+      # Hjälpfunktion: gör om text till filnamnssäker form (åäö -> aao,
+      # mellanslag/specialtecken -> _, max 30 tecken så filnamnet inte blir för långt)
+      slugify <- function(x, maxlen = 30) {
+        if (is.null(x) || length(x) == 0 || is.na(x) || x == "") return(NA_character_)
+        s <- tolower(as.character(x))
+        s <- chartr("åäöéèêü", "aaoeeeu", s)
+        s <- str_replace_all(s, "[^a-z0-9]+", "_")
+        s <- str_replace_all(s, "^_+|_+$", "")
+        if (nchar(s) > maxlen) s <- str_sub(s, 1, maxlen)
+        if (nchar(s) == 0) NA_character_ else s
+      }
+
+      # Geografi: kommun (+ ev. DeSO-namn)
+      geo_del <- if (vald_kommun() == "Alla") {
+        "dalarna"
+      } else if (kartniva() == "deso" && !is.null(vald_deso()) && !is.null(vald_deso_namn())) {
+        paste0(slugify(vald_kommun(), 15), "_", slugify(vald_deso_namn(), 15))
+      } else {
+        slugify(vald_kommun())
+      }
+
+      # Brottstyp: senaste nivån i hierarkin + ev. vald max-nivå-kategori
+      brott_del <- if (!is.null(vald_max_niva_kategori())) {
+        slugify(vald_max_niva_kategori())
+      } else if (length(rubrik_brott_niva()) > 0) {
+        slugify(rubrik_brott_niva()[length(rubrik_brott_niva())])
+      } else {
+        "alla_brott"
+      }
+
+      # Tidsperiod
+      tid_del <- if (input$val_ar == "Senaste 12 månaderna") {
+        "sen_12_man"
+      } else if (input$val_ar == "Hela perioden") {
+        "hela_perioden"
+      } else if (input$val_ar == "Anpassad period…") {
+        if (!is.null(input$anpassad_fran) && !is.null(input$anpassad_till)) {
+          paste0(input$anpassad_fran, "-", input$anpassad_till)
+        } else {
+          "anpassad"
+        }
+      } else {
+        slugify(input$val_ar)
+      }
+
+      delar <- c("brott", geo_del, brott_del, tid_del, as.character(Sys.Date()))
+      delar <- delar[!is.na(delar) & nchar(delar) > 0]
+      paste0(paste(delar, collapse = "_"), ".xlsx")
+    },
+    content = function(file) {
+
+      niva <- brott_niva()
+      hierarki <- rubrik_brott_niva()
+      indelning <- vald_indelning()
+      indelning_namnkol <- paste0(indelning, "_namn")
+
+      # Samma filtrering som i diagrammen
+      brottskoder_filtrering <- brott_niva_nyckel() %>%
+        {
+          if (length(hierarki) > 0) {
+            filter(., .data[[indelning_namnkol]] == hierarki[length(hierarki)])
+          } else {
+            .
+          }
+        } %>% dplyr::pull(brottskod)
+
+      if (!is.null(vald_max_niva_kategori())) {
+        brottskoder_maxniva <- brott_niva_nyckel() %>%
+          filter(.data[[indelning_namnkol]] == vald_max_niva_kategori()) %>%
+          dplyr::pull(brottskod)
+
+        brottskoder_filtrering <- intersect(brottskoder_filtrering, brottskoder_maxniva)
+      }
+
+      df_filt <- brottsdata() %>%
+        filter(brottskod %in% brottskoder_filtrering)
+
+      df_filt <- filtrera_data(df_filt, vald_kommun(), indelning, niva, brott_niva_nyckel())
+      df_filt <- filtrera_tidsperiod(df_filt, input$val_ar, input$anpassad_fran, input$anpassad_till)
+
+      # Filtrera på vald DeSO om kartan är på deso-nivå
+      if (kartniva() == "deso" && !is.null(vald_deso())) {
+        df_filt <- df_filt %>% filter(desokod == vald_deso())
+      }
+
+      if (nrow(df_filt) == 0) {
+        write_xlsx(tibble(meddelande = "Inga brott i aktuellt urval"), file)
+        return(invisible())
+      }
+
+      # Lägg till månad och veckodag från datum
+      df_filt <- df_filt %>%
+        mutate(
+          datum = as.Date(inskrivningsdatum),
+          ar = as.integer(substr(`inskr årmånad`, 1, 4)),
+          manad_nr = as.integer(substr(`inskr årmånad`, 5, 6)),
+          manad = format(datum, "%B"),
+          veckodag_nr = as.integer(format(datum, "%u")),
+          veckodag = format(datum, "%A")
+        )
+
+      # Geografikolumner enligt aktuell nivå (kommun eller DeSO)
+      if (kartniva() == "deso") {
+        geo_kols <- c("kommunnamn", "desokod", "regsonamn")
+      } else {
+        geo_kols <- c("kommunnamn")
+      }
+
+      grp_kols <- c(indelning_namnkol, geo_kols,
+                    "ar", "manad_nr", "manad", "veckodag_nr", "veckodag")
+
+      df_agg <- df_filt %>%
+        group_by(across(all_of(grp_kols))) %>%
+        summarise(antal_brott = sum(antal_brott, na.rm = TRUE), .groups = "drop") %>%
+        arrange(across(all_of(c(geo_kols, indelning_namnkol, "ar", "manad_nr", "veckodag_nr"))))
+
+      write_xlsx(df_agg, file)
     }
   )
   # ==================================== kod för andra fliken ===================================
@@ -1492,13 +1649,18 @@ shinyServer(function(input, output, session) {
       labs(x = "År",
            y = unique(plot_data$enhet),
            title = input$variabel_ntu,
-           color = NULL) +
+           color = NULL,
+           caption = KALLA_BRA) +
       theme_minimal(base_size = 10) +
       theme(
         plot.title = element_textbox_simple(
           size = 12, lineheight = 1.1, face = "bold",
           margin = margin(b = 8),
           width = unit(1, "npc")),
+        plot.caption = element_text(
+          size = 8, color = "#666", hjust = 0,
+          margin = margin(t = 6)
+        ),
         plot.margin = margin(t = 12, r = 10, b = 8, l = 10),
         axis.title.y = element_textbox_simple(
           #size = diagram_titel_storlek,
@@ -1557,13 +1719,18 @@ shinyServer(function(input, output, session) {
       labs(x = "År",
            y = unique(plot_data$enhet),
            color = NULL,
-           title = paste0(input$variabel_anm, " i ", input$kommun, " (Antal per 100 000 inv)")) +
+           title = paste0(input$variabel_anm, " i ", input$kommun, " (Antal per 100 000 inv)"),
+           caption = KALLA_BRA) +
       theme_minimal(base_size = 10) +
       theme(
         plot.title = element_textbox_simple(
           size = 12, lineheight = 1.1, face = "bold",
           margin = margin(b = 8),
           width = unit(1, "npc")),
+        plot.caption = element_text(
+          size = 8, color = "#666", hjust = 0,
+          margin = margin(t = 6)
+        ),
         plot.margin = margin(t = 12, r = 10, b = 8, l = 10),
         axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10)
       )
@@ -1602,12 +1769,18 @@ shinyServer(function(input, output, session) {
                              color = rus_tre_fokus[3], size = 2) +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
-      labs(x = "År", y = "Antal", title = paste0(input$variabel_anm, " i ", input$kommun, " (Antal)")) +
+      labs(x = "År", y = "Antal",
+           title = paste0(input$variabel_anm, " i ", input$kommun, " (Antal)"),
+           caption = KALLA_BRA) +
       theme_minimal(base_size = 10) +
       theme(plot.title = element_textbox_simple(
         size = 12, face = "bold",
         margin = margin(b = 8),
         width = unit(1, "npc")),
+        plot.caption = element_text(
+          size = 8, color = "#666", hjust = 0,
+          margin = margin(t = 6)
+        ),
         axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10))
 
     girafe(ggobj = p, width_svg = 6, height_svg = 4,
