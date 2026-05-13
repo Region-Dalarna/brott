@@ -30,7 +30,7 @@ format_armanad <- function(armanad) {
 }
 
 filtrera_tidsperiod <- function(df, period, fran = NULL, till = NULL) {
-  if (period == "Hela perioden") {
+  if (period == "Hela perioden" || period == "Jämför månader") {
     # Ingen filtrering - returnera all data
     return(df)
   }
@@ -138,7 +138,7 @@ summering_med_bef <- function(df, join_var, bef_df, period, extra_grp_var = NULL
       left_join(viktad_bef_df, by = join_geo) %>%
       mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA))
 
-  } else if (period == "Hela perioden" || period == "Anpassad period…") {
+  } else if (period == "Hela perioden" || period == "Jämför månader" || period == "Anpassad period…") {
     # Hela perioden / anpassad period: använd summan av befolkningen för alla år som finns i datan
     # (dvs. person-år) som nämnare, så får vi ett genomsnittligt årligt antal per 100k
     # Optimerat: använd färdig "inskr år"-kolumn istället för att re-parsa datum per rad
@@ -257,7 +257,7 @@ shinyServer(function(input, output, session) {
     updateSelectInput(
       session,
       "val_ar",
-      choices = c("Senaste 12 månaderna", "Hela perioden", "Anpassad period…", ar),
+      choices = c("Senaste 12 månaderna", "Hela perioden", "Jämför månader", "Anpassad period…", ar),
       selected = "Senaste 12 månaderna"
     )
 
@@ -307,8 +307,10 @@ shinyServer(function(input, output, session) {
   tidsperiod_text <- reactive({
     if (input$val_ar == "Senaste 12 månaderna") {
       "de senaste 12 månaderna"
-    } else if (input$val_ar == "Hela perioden") {
-      "hela perioden"
+    } else if (input$val_ar == "Hela perioden" || input$val_ar == "Jämför månader") {
+      armanader <- brottsdata()$`inskr årmånad`
+      paste0(format_armanad(min(armanader, na.rm = TRUE)), "–",
+             format_armanad(max(armanader, na.rm = TRUE)))
     } else if (input$val_ar == "Anpassad period…") {
       req(input$anpassad_fran, input$anpassad_till)
       paste0(format_armanad(input$anpassad_fran), "–", format_armanad(input$anpassad_till))
@@ -320,8 +322,10 @@ shinyServer(function(input, output, session) {
   tidsperiod_text_karta <- reactive({
     if (input$val_ar == "Senaste 12 månaderna") {
       "sen 12 mån"
-    } else if (input$val_ar == "Hela perioden") {
-      "hela perioden"
+    } else if (input$val_ar == "Hela perioden" || input$val_ar == "Jämför månader") {
+      armanader <- brottsdata()$`inskr årmånad`
+      paste0(format_armanad(min(armanader, na.rm = TRUE)), "–",
+             format_armanad(max(armanader, na.rm = TRUE)))
     } else if (input$val_ar == "Anpassad period…") {
       req(input$anpassad_fran, input$anpassad_till)
       paste0(format_armanad(input$anpassad_fran), "–", format_armanad(input$anpassad_till))
@@ -505,9 +509,12 @@ shinyServer(function(input, output, session) {
 
     # Skapa karta för normalfallet, dvs. att det finns data
 
-    # 2. Färgskala
-    pal <- colorNumeric("YlOrRd", df_map$brott_per_100k,
-                        na.color = "transparent")
+    # 2. Färgskala – gul-orange-röd skala (YlOrRd)
+    pal <- colorNumeric(
+      palette  = "YlOrRd",
+      domain   = df_map$brott_per_100k,
+      na.color = "transparent"
+    )
 
     # 3. Markering av valt DeSO (TRUE/FALSE per rad)
     df_map <- df_map %>%
@@ -547,9 +554,9 @@ shinyServer(function(input, output, session) {
       addPolygons(
         layerId    = df_map[[join_namn]],
         fillOpacity = ~ifelse(vald_geom, 0.95, ifelse(antal_brott == 0, 0, 0.6)),
-        color       = ~ifelse(vald_geom, "#ff0000", "#555555"),   # röd kant för vald DeSO
+        color       = ~ifelse(vald_geom, "#ae2d3a", "#555555"),   # mörkröd kant för vald DeSO (kontrast mot blå skala)
         weight      = ~ifelse(vald_geom, 3, 0.7),                 # mycket tjockare ram
-        fillColor   = ~ifelse(vald_geom, "#ff6666", pal(brott_per_100k)),  # ljusröd fyllning
+        fillColor   = ~ifelse(vald_geom, "#f15060", pal(brott_per_100k)),  # röd fyllning
         #fillColor  = ~pal(brott_per_100k),
         label  = etiketter,
         highlightOptions = highlightOptions(
@@ -820,6 +827,8 @@ shinyServer(function(input, output, session) {
            caption = KALLA_POLISEN) +
       theme_minimal(base_size = 10) +
       theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_text(
           size = 12, lineheight = 1.1, face = "bold",
           margin = margin(b = 4)
@@ -840,6 +849,7 @@ shinyServer(function(input, output, session) {
       ggobj = p,
       width_svg = 8,
       height_svg = 5,
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover(css = "stroke-width:2;stroke:black;cursor:pointer;"),  # ändra bara kant + pekare
@@ -974,6 +984,8 @@ shinyServer(function(input, output, session) {
            caption = KALLA_POLISEN) +
       theme_minimal(base_size = 10) +
       theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_text(
           size = 12,
           lineheight = 1.1,
@@ -993,6 +1005,7 @@ shinyServer(function(input, output, session) {
       ggobj = p,
       width_svg = 8,
       height_svg = 5,
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover(css = "stroke-width:2;stroke:black;cursor:pointer;"),  # ändra bara kant + pekare
@@ -1151,7 +1164,115 @@ shinyServer(function(input, output, session) {
         .groups = "drop"
       ) %>%
       #mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 12 * 100000), NA)) %>%          # årstakt
-      mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA)) %>%
+      mutate(brott_per_100k = ifelse(bef > 0, round((antal_brott / bef) * 100000), NA))
+
+    # ---- Specialvy: Jämför månader (en linje per år, jan–dec på x-axeln) ----
+    if (input$val_ar == "Jämför månader") {
+
+      df_jamf <- df_manad %>%
+        mutate(
+          ar       = as.integer(ar),
+          manad_nr = as.integer(manad_nr),
+          etikett  = paste0(
+            str_to_sentence(manad_namn), " ", ar, "<br>",
+            format(antal_brott, big.mark = " "), " brott"
+          )
+        )
+
+      if (nrow(df_jamf) == 0) {
+        return(girafe(ggobj = ggplot() + theme_void(), bg = "transparent"))
+      }
+
+      alla_ar      <- sort(unique(df_jamf$ar), decreasing = TRUE)
+      senaste      <- alla_ar[1]
+      nast_senaste <- if (length(alla_ar) >= 2) alla_ar[2] else NA_integer_
+      ovriga       <- setdiff(alla_ar, c(senaste, nast_senaste))
+
+      fargpal <- character(0)
+      fargpal[as.character(senaste)] <- "#0f7090"   # mörkblå – senaste året
+      if (!is.na(nast_senaste)) {
+        fargpal[as.character(nast_senaste)] <- "#54a1bd"  # ljusare blå
+      }
+      if (length(ovriga) > 0) {
+        gray_vals <- gray.colors(length(ovriga), start = 0.55, end = 0.85)
+        fargpal[as.character(ovriga)] <- gray_vals
+      }
+
+      # Ordna år så att senaste år ritas sist (alltså överst)
+      ar_levels <- c(rev(ovriga),
+                     if (!is.na(nast_senaste)) nast_senaste,
+                     senaste)
+      df_jamf <- df_jamf %>%
+        mutate(ar = factor(ar, levels = ar_levels))
+
+      manad_etiketter <- c("Jan","Feb","Mar","Apr","Maj","Jun",
+                           "Jul","Aug","Sep","Okt","Nov","Dec")
+
+      geo_txt <- if (is.null(vald_deso_namn())) geografi_text() else vald_deso_namn()
+      titel <- paste0(brottkategori, " per månad ", geo_txt,
+                      ", jämförelse mellan år")
+      titel <- str_wrap(titel, width = 60)
+
+      breaks_vec <- rev(levels(df_jamf$ar))
+
+      p <- ggplot(df_jamf,
+                  aes(x = manad_nr, y = antal_brott,
+                      color = ar, group = ar)) +
+        geom_line_interactive(aes(data_id = ar), linewidth = 1) +
+        geom_point_interactive(
+          aes(tooltip = etikett, data_id = ar),
+          size = 2
+        ) +
+        scale_x_continuous(breaks = 1:12, labels = manad_etiketter) +
+        scale_y_continuous(
+          breaks = scales::pretty_breaks(n = 5),
+          labels = function(x) format(x, big.mark = " ", scientific = FALSE)
+        ) +
+        scale_color_manual_interactive(
+          values  = fargpal,
+          data_id = breaks_vec,
+          tooltip = paste0("Klicka för att fokusera ", breaks_vec,
+                           " – klicka igen för att återställa"),
+          breaks  = breaks_vec,
+          name    = "År"
+        ) +
+        labs(x = NULL, y = "Antal brott", title = titel,
+             caption = KALLA_POLISEN) +
+        theme_minimal(base_size = 10) +
+        theme(
+          panel.background  = element_rect(fill = "transparent", color = NA),
+          plot.background   = element_rect(fill = "transparent", color = NA),
+          legend.background = element_rect(fill = "transparent", color = NA),
+          plot.title = element_text(size = 12, lineheight = 1.1, face = "bold",
+                                    margin = margin(b = 6)),
+          plot.caption = element_text(size = 8, color = "#666", hjust = 0,
+                                      margin = margin(t = 6)),
+          plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
+          axis.text.x  = element_text(size = 10),
+          legend.position = "right",
+          legend.title    = element_text(size = 9),
+          legend.text     = element_text(size = 8),
+          legend.key.size = unit(10, "pt")
+        )
+
+      return(girafe(
+        ggobj      = p,
+        width_svg  = 8,
+        height_svg = 5,
+        bg         = "transparent",
+        options = list(
+          opts_sizing(rescale = TRUE, width = 1),
+          opts_toolbar(hidden = c("lasso_select", "lasso_deselect")),
+          opts_hover(css = "stroke-opacity:1;fill-opacity:1;stroke-width:2.5;cursor:pointer;"),
+          opts_hover_inv(css = "stroke-opacity:0.25;fill-opacity:0.25;"),
+          opts_selection(type = "multiple",
+                         css  = "stroke-opacity:1;fill-opacity:1;stroke-width:2.5;"),
+          opts_selection_inv(css = "stroke-opacity:0.15;fill-opacity:0.15;")
+        )
+      ))
+    }
+
+    df_manad <- df_manad %>%
       arrange(armanad) %>%
       mutate(
         # Använd armanad (YYYYMM) som faktor så varje månad får en unik x-position
@@ -1221,6 +1342,8 @@ shinyServer(function(input, output, session) {
            caption = KALLA_POLISEN) +
       theme_minimal(base_size = 10) +
       theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_text(
           size = 12,
           lineheight = 1.1,
@@ -1240,6 +1363,7 @@ shinyServer(function(input, output, session) {
       ggobj = p,
       width_svg = 8,
       height_svg = 5,
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
@@ -1383,6 +1507,8 @@ shinyServer(function(input, output, session) {
            caption = KALLA_POLISEN) +
       theme_minimal(base_size = 10) +
       theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_text(
           size = 12,
           lineheight = 1.1,
@@ -1402,6 +1528,7 @@ shinyServer(function(input, output, session) {
       ggobj = p,
       width_svg = 8,
       height_svg = 5,
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
@@ -1462,6 +1589,8 @@ shinyServer(function(input, output, session) {
         "sen_12_man"
       } else if (input$val_ar == "Hela perioden") {
         "hela_perioden"
+      } else if (input$val_ar == "Jämför månader") {
+        "jamfor_manader"
       } else if (input$val_ar == "Anpassad period…") {
         if (!is.null(input$anpassad_fran) && !is.null(input$anpassad_till)) {
           paste0(input$anpassad_fran, "-", input$anpassad_till)
@@ -1548,7 +1677,7 @@ shinyServer(function(input, output, session) {
   )
   # ==================================== kod för andra fliken ===================================
 
-  # spara excelfil med brådataset
+  # spara excelfil med brådataset (alla geografier)
   output$export_excel_bra <- downloadHandler(
     filename = function() {
       paste0("bra_kommunindikatorer_", Sys.Date(), ".xlsx")
@@ -1560,11 +1689,41 @@ shinyServer(function(input, output, session) {
     }
   )
 
-  # Uppdatera kommun-listrutan med alla unika kommuner
+  # spara excelfil med brådataset filtrerat på vald kommun (alla indikatorer)
+  output$export_excel_bra_kommun <- downloadHandler(
+    filename = function() {
+      slugify <- function(x, maxlen = 30) {
+        s <- tolower(as.character(x))
+        s <- chartr("åäöéèêü", "aaoeeeu", s)
+        s <- str_replace_all(s, "[^a-z0-9]+", "_")
+        s <- str_replace_all(s, "^_+|_+$", "")
+        if (nchar(s) > maxlen) s <- str_sub(s, 1, maxlen)
+        if (nchar(s) == 0) "kommun" else s
+      }
+      paste0("bra_kommunindikatorer_", slugify(input$kommun), "_", Sys.Date(), ".xlsx")
+    },
+    content = function(file) {
+      df <- bra_kommunindikatorer() %>%
+        dplyr::filter(geografi == input$kommun)
+
+      if (nrow(df) == 0) {
+        write_xlsx(tibble(meddelande = "Inga data för vald kommun"), file)
+      } else {
+        write_xlsx(df, file)
+      }
+    }
+  )
+
+  # Uppdatera kommun-listrutan med alla unika kommuner och slumpa förvalet
   observeEvent(bra_kommunindikatorer(), {
+    alla_geo <- sort(unique(bra_kommunindikatorer()$geografi))
+    # Slumpa en kommun (uteslut läns- och rikssammanslagningar)
+    kommuner_bara <- setdiff(alla_geo, c("Dalarnas län", "Hela landet"))
+    slump_kommun <- if (length(kommuner_bara) > 0) sample(kommuner_bara, 1) else alla_geo[1]
+
     updateSelectInput(session, "kommun",
-                      choices = sort(unique(bra_kommunindikatorer()$geografi)),
-                      selected = "Dalarnas län")
+                      choices = alla_geo,
+                      selected = slump_kommun)
   }, ignoreInit = TRUE)
 
   # Filtrera data baserat på vald kommun
@@ -1591,9 +1750,33 @@ shinyServer(function(input, output, session) {
       unique() %>%
       sort()
 
-    updateSelectInput(session, "variabel_ntu", choices = ntu_vars)
-    updateSelectInput(session, "variabel_anm", choices = anm_vars)
+    # Förvalda värden – flaggskeppsindikatorer med fallback till första alternativet
+    ntu_default <- "Avstått från någon aktivitet på grund av oro för att utsättas för brott"
+    if (!(ntu_default %in% ntu_vars)) {
+      # Fallback: leta efter en variabel som börjar med "Avstått"
+      avstatt_match <- ntu_vars[startsWith(ntu_vars, "Avstått")]
+      ntu_default <- if (length(avstatt_match) > 0) avstatt_match[1] else ntu_vars[1]
+    }
+
+    anm_default <- "Totalt antal anmälda brott"
+    if (!(anm_default %in% anm_vars)) anm_default <- anm_vars[1]
+
+    updateSelectInput(session, "variabel_ntu", choices = ntu_vars, selected = ntu_default)
+    updateSelectInput(session, "variabel_anm", choices = anm_vars, selected = anm_default)
   }, ignoreInit = TRUE)
+
+  # Sätt title-attribut så hela variabelnamnet visas vid hover när
+  # selectize klipper av texten med ellipsis
+  observe({
+    req(input$variabel_ntu)
+    session$sendCustomMessage("set_select_title",
+                              list(id = "variabel_ntu", title = input$variabel_ntu))
+  })
+  observe({
+    req(input$variabel_anm)
+    session$sendCustomMessage("set_select_title",
+                              list(id = "variabel_anm", title = input$variabel_anm))
+  })
 
   # # Uppdatera variabel-listrutor för respektive diagram
   # #observe({
@@ -1624,17 +1807,19 @@ shinyServer(function(input, output, session) {
 
     # Skydd mot tom data
     if (nrow(plot_data) == 0) {
-      return(girafe(ggobj = ggplot() + theme_void()))
+      return(girafe(ggobj = ggplot() + theme_void(), bg = "transparent"))
     }
 
     # Hämta alla geografier som finns i plot_data
     alla_geografier <- unique(plot_data$geografi)
 
-    # Skapa färgvektor med namn som matchar exakt
-    farger <- setNames(
-      c(rus_tre_fokus[3], rus_tre_fokus[1:(length(alla_geografier)-1)]),
-      c(input$kommun, setdiff(alla_geografier, input$kommun))
+    # Färgpalett i Region Dalarnas profil
+    # vald kommun = mörkblå (primary-dark), Dalarnas län = accent, Hela landet = ljus blå
+    bra_palette <- c(
+      "Dalarnas län" = "#54a1bd",
+      "Hela landet"  = "#8edded"
     )
+    bra_palette[input$kommun] <- "#0f7090"
 
     p <- ggplot(plot_data, aes(x = ar, y = varde, group = geografi, color = geografi)) +
       geom_line(linewidth = 1) +
@@ -1642,7 +1827,7 @@ shinyServer(function(input, output, session) {
         aes(tooltip = etikett, data_id = ar),
         size = 2
       ) +
-      scale_color_manual(values = farger,
+      scale_color_manual(values = bra_palette,
                          breaks = c(input$kommun, "Dalarnas län", "Hela landet")) +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
@@ -1653,6 +1838,8 @@ shinyServer(function(input, output, session) {
            caption = KALLA_BRA) +
       theme_minimal(base_size = 10) +
       theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_textbox_simple(
           size = 12, lineheight = 1.1, face = "bold",
           margin = margin(b = 8),
@@ -1673,8 +1860,9 @@ shinyServer(function(input, output, session) {
 
     girafe(
       ggobj = p,
-      width_svg = 6,
+      width_svg = 9,
       height_svg = 4,
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
@@ -1694,17 +1882,18 @@ shinyServer(function(input, output, session) {
              enhet == "Antal per 100 000 inv") %>%
       mutate(etikett = paste0(enhet, " år ", ar, " i ", ifelse(geografi == "Hela landet", tolower(geografi), geografi), ": \n", format(round(varde,1), big.mark = " ")))
     if (nrow(plot_data) == 0) {
-      return(girafe(ggobj = ggplot() + theme_void()))
+      return(girafe(ggobj = ggplot() + theme_void(), bg = "transparent"))
     }
 
     # Hämta alla geografier som finns i plot_data
     alla_geografier <- unique(plot_data$geografi)
 
-    # Skapa färgvektor med namn som matchar exakt
-    farger <- setNames(
-      c(rus_tre_fokus[3], rus_tre_fokus[1:(length(alla_geografier)-1)]),
-      c(input$kommun, setdiff(alla_geografier, input$kommun))
+    # Färgpalett i Region Dalarnas profil
+    bra_palette <- c(
+      "Dalarnas län" = "#54a1bd",
+      "Hela landet"  = "#8edded"
     )
+    bra_palette[input$kommun] <- "#0f7090"
 
     p <- ggplot(plot_data, aes(x = ar, y = varde, group = geografi, color = geografi)) +
       geom_line(linewidth = 1) +
@@ -1712,17 +1901,19 @@ shinyServer(function(input, output, session) {
         aes(tooltip = etikett, data_id = paste(geografi, ar)),
         size = 2
       ) +
-      scale_color_manual(values = farger,
+      scale_color_manual(values = bra_palette,
                          breaks = c(input$kommun, "Dalarnas län", "Hela landet")) +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = "År",
            y = unique(plot_data$enhet),
            color = NULL,
-           title = paste0(input$variabel_anm, " i ", input$kommun, " (Antal per 100 000 inv)"),
+           title = paste0(input$variabel_anm, " i ", input$kommun),
            caption = KALLA_BRA) +
       theme_minimal(base_size = 10) +
       theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_textbox_simple(
           size = 12, lineheight = 1.1, face = "bold",
           margin = margin(b = 8),
@@ -1737,8 +1928,9 @@ shinyServer(function(input, output, session) {
 
     girafe(
       ggobj = p,
-      width_svg = 6,
+      width_svg = 9,
       height_svg = 4,
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:1;"),
@@ -1761,33 +1953,35 @@ shinyServer(function(input, output, session) {
       group_by(ar, geografi) %>%
       reframe(varde = sum(varde, na.rm = TRUE), enhet = first(enhet)) %>%
       mutate(etikett = paste0(enhet, " år ", ar, " i ", geografi, ": \n", format(round(varde,1), big.mark = " ")))
-    if (nrow(plot_data) == 0) return(girafe(ggobj = ggplot() + theme_void()))
+    if (nrow(plot_data) == 0) return(girafe(ggobj = ggplot() + theme_void(), bg = "transparent"))
 
     p <- ggplot(plot_data, aes(x = ar, y = varde, group = 1)) +
-      geom_line(color = rus_tre_fokus[3], linewidth = 1) +
+      geom_line(color = "#0f7090", linewidth = 1) +
       geom_point_interactive(aes(tooltip = etikett, data_id = ar),
-                             color = rus_tre_fokus[3], size = 2) +
+                             color = "#0f7090", size = 2) +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = "År", y = "Antal",
-           title = paste0(input$variabel_anm, " i ", input$kommun, " (Antal)"),
+           title = paste0(input$variabel_anm, " i ", input$kommun),
            caption = KALLA_BRA) +
       theme_minimal(base_size = 10) +
-      theme(plot.title = element_textbox_simple(
-        size = 12, face = "bold",
-        margin = margin(b = 8),
-        width = unit(1, "npc")),
-        plot.caption = element_text(
-          size = 8, color = "#666", hjust = 0,
-          margin = margin(t = 6)
-        ),
-        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10))
+      theme(panel.background = element_rect(fill = "transparent", color = NA),
+            plot.background  = element_rect(fill = "transparent", color = NA),
+            plot.title = element_textbox_simple(
+              size = 12, face = "bold",
+              margin = margin(b = 8),
+              width = unit(1, "npc")),
+            plot.caption = element_text(
+              size = 8, color = "#666", hjust = 0,
+              margin = margin(t = 6)
+            ),
+            axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10))
 
-    girafe(ggobj = p, width_svg = 6, height_svg = 4,
+    girafe(ggobj = p, width_svg = 9, height_svg = 4,
+           bg = "transparent",
            options = list(opts_sizing(rescale = TRUE, width = 1),
                           opts_hover_inv(css = "opacity:1;"),
                           opts_hover(css = "stroke-width:0;fill-opacity:1;cursor:default;"),
                           opts_selection(type = "none")))
   })
 })  # slut shinyServer()
-
