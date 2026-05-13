@@ -1,0 +1,302 @@
+/* ============================================================
+   app.css
+   App-specifik styling för Brottsappen.
+   Laddas EFTER regiondalarna_ruf.css så att lokala regler
+   kan överstyra den delade identiteten vid behov.
+   ============================================================ */
+
+/* ---- Luft mellan flikraden och innehållet ---- */
+.tab-content {
+  padding-top: 18px;
+}
+
+/* ---- Globala knappar (downloadButton m.fl.) i regionens profil ---- */
+.btn-default,
+.shiny-download-link.btn,
+.btn.btn-light {
+  background-color: var(--rd-primary);
+  color: #fff;
+  border: 1px solid var(--rd-primary-dark);
+  font-weight: 500;
+}
+.btn-default:hover,
+.shiny-download-link.btn:hover,
+.btn.btn-light:hover {
+  background-color: var(--rd-primary-dark);
+  color: #fff;
+  border-color: var(--rd-primary-dark);
+}
+.btn-default:focus,
+.shiny-download-link.btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--rd-accent-soft);
+}
+/* Uppåt-pil i diagram-toolbar – håll den ljus och diskret */
+.diagram-toolbar .btn.btn-light {
+  background-color: #fff;
+  color: var(--rd-primary-dark);
+  border: 1px solid var(--rd-border);
+}
+.diagram-toolbar .btn.btn-light:hover {
+  background-color: var(--rd-accent-soft);
+  color: var(--rd-primary-dark);
+  border-color: var(--rd-primary);
+}
+
+/* ---- Transparenta diagrampaneler (ggiraph/SVG) ---- */
+.diagram-cell .girafe_container_std,
+.diagram-cell svg,
+.diagram-cell .html-widget {
+  background: transparent !important;
+}
+
+/* ---- Leaflet: z-index så tooltip ligger ovanför teckenförklaring ---- */
+.leaflet-pane.leaflet-map-pane { z-index: auto !important; }
+.leaflet-pane.leaflet-tooltip-pane { z-index: 1100 !important; }
+.leaflet-tooltip { z-index: 1100 !important; }
+.leaflet-bottom.leaflet-left { z-index: 600 !important; }
+/* Hus-knappen ska ligga ovanför tooltipen */
+.leaflet-top.leaflet-left { z-index: 1200 !important; }
+
+/* ---- Kompakt och halvt genomskinlig teckenförklaring ---- */
+.leaflet-control.kompakt-legend {
+  font-size: 10px !important;
+  line-height: 1.25 !important;
+  padding: 5px 7px !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.15) !important;
+  pointer-events: none !important;  /* mus släpps igenom så tooltip visas */
+}
+.leaflet-control.kompakt-legend i {
+  width: 12px !important;
+  height: 12px !important;
+  margin-right: 3px !important;
+  opacity: 0.9;
+}
+.leaflet-control.kompakt-legend strong {
+  font-size: 11px !important;
+}
+
+/* ---- Layout för Polisstatistik-fliken ---- */
+.polisstat-layout #karta_brott { height: 70vh !important; }
+.polisstat-layout .diagram-cell {
+  height: 35vh;
+  min-height: 240px;
+}
+/* Karta lite smalare så diagrammen får mer plats */
+@media (min-width: 992px) {
+  .polisstat-layout > .row > .col-sm-4 {
+    flex: 0 0 28%;
+    max-width: 28%;
+  }
+  .polisstat-layout > .row > .col-sm-8 {
+    flex: 0 0 72%;
+    max-width: 72%;
+  }
+}
+/* Lite vertikal luft ovanför översta diagramraden */
+.polisstat-layout .col-sm-8 > .row:first-child {
+  margin-top: 10px;
+}
+/* Vertikal luft mellan översta och understa diagramraden */
+.polisstat-layout .col-sm-8 > .row + .row {
+  margin-top: 18px;
+}
+.polisstat-layout .diagram-cell .girafe_container_std,
+.polisstat-layout .diagram-cell .html-widget {
+  height: 100% !important;
+  width: 100% !important;
+}
+/* Tightare gutters mellan diagram-cellerna i 2x2-rutnätet */
+.polisstat-layout .col-sm-6 {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+.polisstat-layout .fluidRow,
+.polisstat-layout .row {
+  margin-left: -4px;
+  margin-right: -4px;
+}
+.polisstat-layout .diagram-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 50px;
+}
+.polisstat-layout .diagram-toolbar > div { flex: 1; min-width: 0; }
+.polisstat-layout .diagram-toolbar .form-group { margin-bottom: 0; }
+.polisstat-layout .diagram-toolbar .btn { flex: 0 0 auto; }
+
+/* ---- Anpassad period - kompakt rad med två små listrutor ---- */
+.polisstat-layout .anpassad-period {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.polisstat-layout .anpassad-period .anpassad-cell {
+  flex: 1; min-width: 0;
+}
+.polisstat-layout .anpassad-period label {
+  font-size: 11px;
+  font-weight: 400;
+  margin-bottom: 2px;
+  color: #555;
+}
+.polisstat-layout .anpassad-period .form-group { margin-bottom: 0; }
+.polisstat-layout .anpassad-period select.form-control {
+  height: 30px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+/* ---- Nedladdningsknappar – använder den delade primärfärgen ---- */
+.polisstat-layout .karta-knapp {
+  margin-top: 10px;
+  display: flex;
+  gap: 6px;
+}
+.polisstat-layout .karta-knapp .btn {
+  flex: 1;
+  width: auto;
+  background-color: var(--rd-primary);
+  color: #fff;
+  border-color: var(--rd-primary-dark);
+  font-weight: 500;
+  padding: 8px 10px;
+  font-size: 13px;
+  white-space: normal;
+  line-height: 1.2;
+}
+.polisstat-layout .karta-knapp .btn:hover {
+  background-color: var(--rd-primary-dark);
+  color: #fff;
+}
+
+/* ---- Layout för BRÅ-fliken ---- */
+.bra-layout {
+  padding: 0 4px;
+}
+/* Tightare gutters så diagrammen får mer pixelbredd */
+.bra-layout > .row {
+  margin-left: -4px;
+  margin-right: -4px;
+}
+.bra-layout > .row > [class*="col-"] {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+/* Smal vänsterkolumn: kommunval + två staplade nedladdningsknappar */
+.bra-layout .bra-col-vanster {
+  display: flex;
+  flex-direction: column;
+}
+.bra-layout .bra-downloads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.bra-layout .bra-downloads .btn {
+  width: 100%;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: left;
+  min-height: 54px;            /* säkerställer samma höjd oavsett textradantal */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Kolumnbredder: lite bredare vänster för knapparna, övrigt till diagrammen */
+@media (min-width: 992px) {
+  .bra-layout > .row > .col-sm-2 {
+    flex: 0 0 16%;
+    max-width: 16%;
+  }
+  .bra-layout > .row > .col-sm-5 {
+    flex: 0 0 42%;
+    max-width: 42%;
+  }
+}
+
+/* Per-diagram-toolbar (matchar Polisstatistik-flikens stil) */
+.bra-layout .diagram-toolbar {
+  margin-bottom: 12px;
+  min-height: 50px;
+}
+.bra-layout .diagram-toolbar .form-group {
+  margin-bottom: 0;
+  max-width: 400px;          /* lika breda NTU/Anmälda-filter, något bredare än default */
+}
+.bra-layout .diagram-toolbar.spacer { visibility: hidden; }
+
+/* Tvinga selectize-fältet att hålla sig till en rad med ellipsis – så att
+   NTU-filtret (långa variabelnamn) får samma höjd som Anmälda brott-filtret.
+   Full text visas via title-attributet vid hover. */
+.bra-layout .diagram-toolbar .selectize-input {
+  white-space: nowrap;
+  overflow: hidden;
+}
+.bra-layout .diagram-toolbar .selectize-input > .item {
+  display: inline-block;
+  max-width: calc(100% - 20px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+/* Diagramceller – alla tre diagram har samma storlek.
+   NTU står ensam i mittenkolumnen, de två Anmälda-diagrammen är staplade
+   till höger men varje cell har samma höjd som NTU-cellen. */
+.bra-layout .bra-diagram-cell {
+  height: 42vh;
+  min-height: 260px;
+  margin-bottom: 12px;
+}
+.bra-layout .bra-diagram-cell--half {
+  height: 42vh;
+  min-height: 260px;
+  margin-bottom: 12px;
+}
+.bra-layout .bra-diagram-cell .girafe_container_std,
+.bra-layout .bra-diagram-cell .html-widget,
+.bra-layout .bra-diagram-cell svg {
+  height: 100% !important;
+  width: 100% !important;
+  background: transparent !important;
+}
+
+@media (max-width: 991px) {
+  .bra-layout .bra-diagram-cell,
+  .bra-layout .bra-diagram-cell--half {
+    height: 40vh;
+    min-height: 240px;
+  }
+  .bra-layout .diagram-toolbar.spacer { display: none; }
+  .bra-layout .bra-downloads {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .bra-layout .bra-downloads .btn { width: auto; }
+}
+
+/* ---- Responsivt: stacka allt under 992 px ---- */
+@media (max-width: 991px) {
+  .polisstat-layout .col-sm-4,
+  .polisstat-layout .col-sm-6,
+  .polisstat-layout .col-sm-8 {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+  }
+  .polisstat-layout #karta_brott { height: 50vh !important; }
+  .polisstat-layout .diagram-cell {
+    height: 40vh;
+    margin-bottom: 12px;
+  }
+  /* När allt stackas behövs inte den tomma toolbar-platshållaren */
+  .polisstat-layout .diagram-toolbar.spacer { display: none; }
+}

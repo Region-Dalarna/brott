@@ -26,6 +26,10 @@ För att deploy och drift ska fungera följer vi en enkel princip:
   gruppen) gör att nya filer som skapas i katalogen automatiskt ärver
   gruppen `shiny`.
 - **Läge på filer**: `664` (`-rw-rw-r--`).
+- **`shiny-deploy` måste vara medlem i gruppen `shiny`** — det är vad som
+  gör att deploy-skriptet kan köra `chgrp -R shiny` utan `sudo`. Lägg till
+  med `sudo usermod -aG shiny shiny-deploy` och starta om GitHub
+  Actions-runnern så att gruppmedlemskapet slår igenom.
 
 ### Vanliga fallgropar
 
@@ -40,19 +44,29 @@ För att deploy och drift ska fungera följer vi en enkel princip:
 - **Föräldrakatalogerna måste också vara åtkomliga.** `/srv/shiny-server`
   har `drwxr-s---  shiny-deploy  shinyapps`, så bara ägaren och medlemmar
   i gruppen `shinyapps` kommer åt underkatalogerna.
+- **Om `shiny-deploy` inte är medlem i gruppen `shiny`** failar deployen
+  med `Operation not permitted` när `chgrp` körs. Lägg till medlemskapet
+  enligt ovan och starta om runnern.
 
-### Självläkning vid deploy
+### Konsistens vid deploy
 
-Workflowen kör `chown -R shiny-deploy:shiny` på app-katalogen efter
-varje deploy, så även om en fil tillfälligt fått fel ägare återställs
-det automatiskt vid nästa körning.
+Deploy-skriptet `/usr/local/bin/shiny_deploy.sh` avslutas med
+`chgrp -R shiny` plus `chmod 2775`/`664` på app-katalogen vid varje deploy.
+Grupp och läge återställs alltså automatiskt vid varje körning, även om en
+fil tillfälligt fått fel ägare eller fel läge. Inget extra steg behövs i
+`.github/workflows/deploy.yml`.
 
 ### Återställa rättigheter manuellt
 
-Om något ändå går snett:
+Normalt behövs inte detta — `shiny_deploy.sh` sköter grupp och läge vid varje
+deploy. Men om en fil ägs av fel *användare* (t.ex. `root` efter en
+felaktig manuell redigering) måste det rättas med `sudo`, eftersom `chown`
+av användare kräver root:
 
 ```bash
 sudo chown -R shiny-deploy:shiny /srv/shiny-server/brott
 sudo find /srv/shiny-server/brott -type d -exec chmod 2775 {} \;
 sudo find /srv/shiny-server/brott -type f -exec chmod 664 {} \;
 ```
+
+Efter det här tar nästa deploy hand om resten via `shiny_deploy.sh`.
