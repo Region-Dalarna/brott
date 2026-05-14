@@ -40,7 +40,7 @@ shinyUI(tagList(
       "Brottsförebyggande arbete i Dalarna"
     ),
     tags$a(
-      href = "https://www.regiondalarna.se/utveckling-och-tillvaxt/regional-utveckling/samhallsanalys/",
+      href = "https://www.regiondalarna.se/verksamhet/regional-utveckling/statistik-och-rapporter/",
       target = "_blank",
       class = "rd-header__right",
       tags$img(src = "logo_liggande_fri_vit.png", alt = "Region Dalarna"),
