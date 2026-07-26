@@ -1,4 +1,3 @@
-
 # ---- Hjälpfunktioner ----
 
 filtrera_data <- function(df, kommun, indelning, niva, brott_niva_nyckel_df) {
@@ -181,6 +180,13 @@ shinyServer(function(input, output, session) {
                    duration = NULL,
                    closeButton = FALSE,
                    type = "message")
+
+  # Engångstips om klickbara figurer
+  showNotification(
+    HTML("<b>Tips!</b> Kartan och de två vänstra diagrammen är klickbara –
+          borra ner i statistiken genom att klicka."),
+    duration = 12,
+    type = "message")
 
   kartniva <- reactiveVal("kommun")                             # kartnivå i kartan kommun och deso, ska vi ha en till där vi tittar på enskilda deso?
   vald_kommun <- reactiveVal("Alla")                            # vald kommun i kartan
@@ -560,7 +566,7 @@ shinyServer(function(input, output, session) {
         #fillColor  = ~pal(brott_per_100k),
         label  = etiketter,
         highlightOptions = highlightOptions(
-          weight = 3, color = "#000000", bringToFront = TRUE
+          weight = 3, color = "#000000", bringToFront = FALSE
         )
       ) %>%
       addLegend(
@@ -571,7 +577,14 @@ shinyServer(function(input, output, session) {
       ) %>%
       addControl(label_for_map(),
                  position = "topright",
-                 className = "map-filter-text")
+                 className = "map-filter-text") %>%
+      addControl(
+        HTML(paste0("<i class='fa fa-hand-pointer'></i> ",
+                    if (kartniva() == "kommun") "Klicka på en kommun"
+                    else "Klicka på ett DeSO")),
+        position = "bottomright",
+        className = "map-klick-hint"
+      )
 
     # Styr zoom-nivån.
     # Asymmetrisk padding: mer luft till vänster så att polygonerna förskjuts
@@ -805,7 +818,13 @@ shinyServer(function(input, output, session) {
     titel <- if (length(rubrik_brott_niva()) > 0) rubrik_brott_niva()[length(rubrik_brott_niva())] else "Alla brott"
     titel <- paste0(titel, " ", geo_txt, " ", tidsperiod_text())
     titel <- str_wrap(titel, width = 60)
-    undertitel <- paste0(indelning, " - Nivå ", visa_niva)
+    undertitel <- if (length(rubrik_brott_niva()) == 0) {
+      paste0(indelning, " · klicka på en stapel för nästa nivå")
+    } else {
+      paste0("Alla brott › ",
+             paste(rubrik_brott_niva(), collapse = " › "),
+             "  (pilen går tillbaka)")
+    }
 
 
     # Skapa diagram
@@ -1013,7 +1032,9 @@ shinyServer(function(input, output, session) {
       ))
   })
 
-
+  output$geografi_klick_text <- renderText({
+    if (kartniva() == "kommun") "Klicka på en kommun för DeSO-nivå" else "Klicka på ett DeSO"
+  })
 
   observeEvent(input$diagram_geografi_selected, {
     req(input$diagram_geografi_selected)

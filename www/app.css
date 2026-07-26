@@ -50,6 +50,47 @@
   background: transparent !important;
 }
 
+/* ---- Klick-hint: badge på klickbara figurer ---- */
+.diagram-cell--klickbar { position: relative; }
+
+.klick-hint,
+.leaflet-control.map-klick-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--rd-font-sans);
+  color: var(--rd-primary-dark);
+  background: var(--rd-accent-soft);
+  border: 1px solid var(--rd-primary);
+  border-radius: 999px;
+  padding: 2px 9px;
+  pointer-events: none;          /* stör inte tooltips/klick */
+}
+.klick-hint {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  z-index: 10;
+  opacity: 0;                 /* dold tills JS visar den efter första render */
+  transition: opacity 0.2s;
+}
+/* Visas mjukt in när diagrammet har laddat klart (se JS i ui.R) */
+.klick-hint.klick-hint--synlig { opacity: 1; }
+/* Tona ner badgen när användaren interagerar med figuren */
+.diagram-cell--klickbar:hover .klick-hint.klick-hint--synlig { opacity: 0.35; }
+
+/* Kartans badge placeras av Leaflet (addControl) */
+.leaflet-control.map-klick-hint {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Muspekare = hand på kartans polygoner (Leaflet sätter den annars
+   bara när popup finns, inte för label) */
+.leaflet-interactive { cursor: pointer !important; }
+
 /* ---- Leaflet: z-index så tooltip ligger ovanför teckenförklaring ---- */
 .leaflet-pane.leaflet-map-pane { z-index: auto !important; }
 .leaflet-pane.leaflet-tooltip-pane { z-index: 1100 !important; }
@@ -299,4 +340,12 @@
   }
   /* När allt stackas behövs inte den tomma toolbar-platshållaren */
   .polisstat-layout .diagram-toolbar.spacer { display: none; }
+}
+
+/* ---- Reservera plats längst ner i klickbara diagramceller åt badgen ----
+   Krymper bara ggiraph-widgetens höjd med 22px, oavsett box-sizing,
+   så badgen aldrig hamnar ovanpå x-axelns roterade etiketter. */
+.polisstat-layout .diagram-cell--klickbar .girafe_container_std,
+.polisstat-layout .diagram-cell--klickbar .html-widget {
+  height: calc(100% - 22px) !important;
 }
