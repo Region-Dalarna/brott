@@ -4,6 +4,13 @@ library(leaflet)
 library(ggiraph)
 library(shinyjs)
 
+# Liten alltid-synlig badge som markerar klickbara figurer
+klick_hint <- function(text = "Klickbar – borra ner") {
+  div(class = "klick-hint",
+      icon("hand-pointer"),
+      span(text))
+}
+
 shinyUI(tagList(
 
   tags$head(
@@ -26,6 +33,15 @@ shinyUI(tagList(
       "  if (item) { item.setAttribute('title', msg.title); }",
       "  var sel = document.getElementById(msg.id);",
       "  if (sel) { sel.setAttribute('title', msg.title); }",
+      "});"
+    )),
+    # fada in klick-hint-badgen först när respektive diagram renderats
+    tags$script(HTML(
+      "$(document).on('shiny:value', function(event) {",
+      "  if (event.name === 'diagram_brottsomrade' || event.name === 'diagram_geografi') {",
+      "    $(event.target).closest('.diagram-cell--klickbar')",
+      "      .find('.klick-hint').addClass('klick-hint--synlig');",
+      "  }",
       "});"
     ))
   ),
@@ -88,7 +104,8 @@ shinyUI(tagList(
                                actionButton("diagram_back", label = NULL, icon = icon("level-up-alt"),
                                             class = "btn btn-light", title = "Gå tillbaka till högre nivå i diagrammet nedan")
                            ),
-                           div(class = "diagram-cell",
+                           div(class = "diagram-cell diagram-cell--klickbar",
+                               klick_hint("Klicka på en stapel för underkategorier"),
                                girafeOutput("diagram_brottsomrade", width = "100%", height = "100%")
                            )
                          ),
@@ -125,7 +142,10 @@ shinyUI(tagList(
                        fluidRow(
                          column(
                            width = 6,
-                           div(class = "diagram-cell",
+                           div(class = "diagram-cell diagram-cell--klickbar",
+                               div(class = "klick-hint",
+                                   icon("hand-pointer"),
+                                   textOutput("geografi_klick_text", inline = TRUE)),
                                girafeOutput("diagram_geografi", width = "100%", height = "100%")
                            )
                          ),
@@ -200,6 +220,7 @@ shinyUI(tagList(
             <p>
             Här kan du analysera brottsstatistik för Dalarna. Detta verktyg är en prototyp och det färdiga verktyget kommer att publiceras på annan plats. I och med det kommer denna sida att stängas ned.
             <ul>
+            <li>Figurer markerade med handikonen <i>(Klickbar)</i> går att klicka i för att borra ner i statistiken.</li>
             <li>Klicka på staplarna i det stora diagrammet för att se underkategorier av brott.</li>
             <li>Du går tillbaka med uppåt-pilen under diagrammet.</li>
             <li>Klicka på en kommun i kartan för att se brott i den kommunen och hur de fördelar sig per Demografiskt Statistikområde (DeSO).</li>
