@@ -10,6 +10,8 @@ library(lubridate)
 
 source("https://raw.githubusercontent.com/Region-Dalarna/funktioner/main/func_shinyappar.R", encoding = "utf-8", echo = FALSE)
 
+telemetry <- skapa_telemetry("brott")                     # för telemetry-paketet, mäta aktivitet i appen
+
 options(dplyr.summarise.inform = FALSE)
 
 # ---- 1. Läs in data ----

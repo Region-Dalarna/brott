@@ -174,6 +174,10 @@ KALLA_BRA     <- "Källa: Brottsförebyggande rådet (BRÅ), bearbetning av Samh
 # ---- Server ----
 shinyServer(function(input, output, session) {
 
+  if (!is.null(telemetry)) {
+    telemetry$start_session(navigation_input_id = "flikval")
+  }
+
   # Visa laddningsmeddelande direkt när appen startar
   showNotification("Data laddas, vänta lite…",
                    id = "loading_msg",
