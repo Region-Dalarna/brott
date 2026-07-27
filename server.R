@@ -180,9 +180,10 @@ shinyServer(function(input, output, session) {
       navigation_input_id = "flikval"
     )
     telemetry$log_all_inputs(
-      excluded_inputs_regex = "(_hovered$|_zoom$|_center$|_bounds$|_selected$|_set$)",
+      excluded_inputs_regex = "(_hovered$|_zoom$|_center$|_bounds$|_mouseover$|_mouseout$|_selected$|_set$)",
       excluded_inputs        = "flikval"
     )
+    telemetry$log_navigation_manual("flikval", "Polisstatistik")
   }
 
   # Visa laddningsmeddelande direkt när appen startar
