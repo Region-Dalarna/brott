@@ -26,7 +26,7 @@ shinyUI(tagList(
     tags$link(rel = "stylesheet", type = "text/css", href = "app.css"),
 
     # använd telemetry-paketet om det finns konfigurerat på maskinen (kommer att fungerar på servrarna men ignoreras om man kör appen lokalt)
-    if (!is.null(telemetry)) shiny.telemetry::use_telemetry(),
+    telemetri_ui(telemetry),
 
     # JS: sätt title-attribut på selectize-fältet så hela texten visas vid hover
     # även när vi har klippt av den med ellipsis
