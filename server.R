@@ -171,20 +171,20 @@ summering_med_bef <- function(df, join_var, bef_df, period, extra_grp_var = NULL
 KALLA_POLISEN <- "Källa: Polisen, bearbetning av Samhällsanalys, Region Dalarna"
 KALLA_BRA     <- "Källa: Brottsförebyggande rådet (BRÅ), bearbetning av Samhällsanalys, Region Dalarna"
 
+# ---- Diagramtypografi ----
+diagram_text_storlek <- 11
+diagram_rubrik_storlek <- 14
+diagram_underrubrik_storlek <- 11
+diagram_caption_storlek <- 9
+diagram_axeltext_storlek <- 11
+diagram_legend_rubrik_storlek <- 10
+diagram_legend_text_storlek <- 9
+
+
 # ---- Server ----
 shinyServer(function(input, output, session) {
 
-  if (!is.null(telemetry)) {
-    telemetry$start_session(
-      track_inputs        = FALSE,
-      navigation_input_id = "flikval"
-    )
-    telemetry$log_all_inputs(
-      excluded_inputs_regex = "(_hovered$|_zoom$|_center$|_bounds$|_mouseover$|_mouseout$|_selected$|_set$)",
-      excluded_inputs        = "flikval"
-    )
-    telemetry$log_navigation_manual("flikval", "Polisstatistik")
-  }
+  telemetri_server(telemetry, navigation_id = "flikval", forsta_flik = "Polisstatistik")
 
   # Visa laddningsmeddelande direkt när appen startar
   showNotification("Data laddas, vänta lite…",
@@ -507,7 +507,7 @@ shinyServer(function(input, output, session) {
         return(
           #leaflet(df_map) |>
           leaflet() |>
-            addProviderTiles("CartoDB.Positron") |>
+            addProviderTiles("OpenStreetMap.Mapnik", options = providerTileOptions(opacity = 0.45)) |>
             addControl("Inga data för vald nivå/kombination",
                        position = "topright",
                        className = "map-filter-text")
@@ -560,7 +560,7 @@ shinyServer(function(input, output, session) {
     # 6. Välj bas-objekt: ny karta eller uppdatering
     bas <- if (!ar_uppdatering) {
       leaflet(df_map) %>%
-        addProviderTiles("CartoDB.Positron")
+        addProviderTiles("OpenStreetMap.Mapnik", options = providerTileOptions(opacity = 0.45))
     } else {
       leafletProxy("karta_brott", data = df_map) %>%
         clearShapes() %>%
@@ -856,23 +856,23 @@ shinyServer(function(input, output, session) {
       labs(x = NULL, y = "Antal brott per 100.000 inv",
            title = titel, subtitle = undertitel,
            caption = KALLA_POLISEN) +
-      theme_minimal(base_size = 10) +
+      theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_text(
-          size = 12, lineheight = 1.1, face = "bold",
+          size = diagram_rubrik_storlek, lineheight = 1.1, face = "bold",
           margin = margin(b = 4)
         ),
         plot.subtitle = element_text(
-          size = 10, margin = margin(b = 6)
+          size = diagram_underrubrik_storlek, margin = margin(b = 6)
         ),
         plot.caption = element_text(
-          size = 8, color = "#666", hjust = 0,
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
           margin = margin(t = 6)
         ),
         plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
-        axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = diagram_axeltext_storlek),
         legend.position = "none"
       )
 
@@ -1013,22 +1013,22 @@ shinyServer(function(input, output, session) {
       scale_x_discrete(labels = function(x) str_trunc(x, 20)) +
       labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel,
            caption = KALLA_POLISEN) +
-      theme_minimal(base_size = 10) +
+      theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_text(
-          size = 12,
+          size = diagram_rubrik_storlek,
           lineheight = 1.1,
           face = "bold",
           margin = margin(b = 6)
         ),
         plot.caption = element_text(
-          size = 8, color = "#666", hjust = 0,
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
           margin = margin(t = 6)
         ),
         plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
-        axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = diagram_axeltext_storlek),
         legend.position = "none"
       )
 
@@ -1271,14 +1271,14 @@ shinyServer(function(input, output, session) {
         ) +
         labs(x = NULL, y = "Antal brott", title = titel,
              caption = KALLA_POLISEN) +
-        theme_minimal(base_size = 10) +
+        theme_minimal(base_size = diagram_text_storlek) +
         theme(
           panel.background  = element_rect(fill = "transparent", color = NA),
           plot.background   = element_rect(fill = "transparent", color = NA),
           legend.background = element_rect(fill = "transparent", color = NA),
-          plot.title = element_text(size = 12, lineheight = 1.1, face = "bold",
+          plot.title = element_text(size = diagram_rubrik_storlek, lineheight = 1.1, face = "bold",
                                     margin = margin(b = 6)),
-          plot.caption = element_text(size = 8, color = "#666", hjust = 0,
+          plot.caption = element_text(size = diagram_caption_storlek, color = "#666", hjust = 0,
                                       margin = margin(t = 6)),
           plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
           axis.text.x  = element_text(size = 10),
@@ -1373,22 +1373,22 @@ shinyServer(function(input, output, session) {
       #labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
       labs(x = NULL, y = "Antal brott", title = titel,
            caption = KALLA_POLISEN) +
-      theme_minimal(base_size = 10) +
+      theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_text(
-          size = 12,
+          size = diagram_rubrik_storlek,
           lineheight = 1.1,
           face = "bold",
           margin = margin(b = 6)
         ),
         plot.caption = element_text(
-          size = 8, color = "#666", hjust = 0,
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
           margin = margin(t = 6)
         ),
         plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
-        axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = diagram_axeltext_storlek),
         legend.position = "none"
       )
 
@@ -1538,22 +1538,22 @@ shinyServer(function(input, output, session) {
       #labs(x = NULL, y = "Antal brott per 100.000 inv", title = titel) +
       labs(x = NULL, y = "Antal brott", title = titel,
            caption = KALLA_POLISEN) +
-      theme_minimal(base_size = 10) +
+      theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_text(
-          size = 12,
+          size = diagram_rubrik_storlek,
           lineheight = 1.1,
           face = "bold",
           margin = margin(b = 6)
         ),
         plot.caption = element_text(
-          size = 8, color = "#666", hjust = 0,
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
           margin = margin(t = 6)
         ),
         plot.margin = margin(t = 4, r = 6, b = 2, l = 6),
-        axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = diagram_axeltext_storlek),
         legend.position = "none"
       )
 
@@ -1869,16 +1869,16 @@ shinyServer(function(input, output, session) {
            title = input$variabel_ntu,
            color = NULL,
            caption = KALLA_BRA) +
-      theme_minimal(base_size = 10) +
+      theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_textbox_simple(
-          size = 12, lineheight = 1.1, face = "bold",
+          size = diagram_rubrik_storlek, lineheight = 1.1, face = "bold",
           margin = margin(b = 8),
           width = unit(1, "npc")),
         plot.caption = element_text(
-          size = 8, color = "#666", hjust = 0,
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
           margin = margin(t = 6)
         ),
         plot.margin = margin(t = 12, r = 10, b = 8, l = 10),
@@ -1888,7 +1888,7 @@ shinyServer(function(input, output, session) {
           width = unit(0.9, "npc"),  # Bredd som proportion av plottens område
           halign = 0.5,  # Centrera texten
           margin = margin(7, 0, 7, 0)),
-        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10)
+        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = diagram_axeltext_storlek)
       )
 
     girafe(
@@ -1943,20 +1943,20 @@ shinyServer(function(input, output, session) {
            color = NULL,
            title = paste0(input$variabel_anm, " i ", input$kommun),
            caption = KALLA_BRA) +
-      theme_minimal(base_size = 10) +
+      theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_textbox_simple(
-          size = 12, lineheight = 1.1, face = "bold",
+          size = diagram_rubrik_storlek, lineheight = 1.1, face = "bold",
           margin = margin(b = 8),
           width = unit(1, "npc")),
         plot.caption = element_text(
-          size = 8, color = "#666", hjust = 0,
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
           margin = margin(t = 6)
         ),
         plot.margin = margin(t = 12, r = 10, b = 8, l = 10),
-        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10)
+        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = diagram_axeltext_storlek)
       )
 
     girafe(
@@ -1997,18 +1997,18 @@ shinyServer(function(input, output, session) {
       labs(x = "År", y = "Antal",
            title = paste0(input$variabel_anm, " i ", input$kommun),
            caption = KALLA_BRA) +
-      theme_minimal(base_size = 10) +
+      theme_minimal(base_size = diagram_text_storlek) +
       theme(panel.background = element_rect(fill = "transparent", color = NA),
             plot.background  = element_rect(fill = "transparent", color = NA),
             plot.title = element_textbox_simple(
-              size = 12, face = "bold",
+              size = diagram_rubrik_storlek, face = "bold",
               margin = margin(b = 8),
               width = unit(1, "npc")),
             plot.caption = element_text(
-              size = 8, color = "#666", hjust = 0,
+              size = diagram_caption_storlek, color = "#666", hjust = 0,
               margin = margin(t = 6)
             ),
-            axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = 10))
+            axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size = diagram_axeltext_storlek))
 
     girafe(ggobj = p, width_svg = 9, height_svg = 4,
            bg = "transparent",
