@@ -876,6 +876,7 @@ shinyServer(function(input, output, session) {
         legend.position = "none"
       )
 
+
     girafe(
       ggobj = p,
       width_svg = 8,
