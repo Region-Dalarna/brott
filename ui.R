@@ -62,8 +62,7 @@ shinyUI(tagList(
       href = "https://www.regiondalarna.se/verksamhet/regional-utveckling/statistik-och-rapporter/",
       target = "_blank",
       class = "rd-header__right",
-      tags$img(src = "logo_liggande_fri_vit.png", alt = "Region Dalarna"),
-      tags$span("Samhällsanalys")
+      tags$img(src = "logo_liggande_fri_vit.png", alt = "Region Dalarna")
     )
   ),
 
@@ -216,50 +215,75 @@ shinyUI(tagList(
                )
       ),
 
-      tabPanel("Instruktioner",
-               div(
-                 style = "margin-bottom: 20px; color: #666; font-size: 14px;",
-                 HTML("
-            <h3>Polisstatistik</h3>
-            <p>
-            Här kan du analysera brottsstatistik för Dalarna. Detta verktyg är en prototyp och det färdiga verktyget kommer att publiceras på annan plats. I och med det kommer denna sida att stängas ned.
-            <ul>
-            <li>Figurer markerade med handikonen <i>(Klickbar)</i> går att klicka i för att borra ner i statistiken.</li>
-            <li>Klicka på staplarna i det stora diagrammet för att se underkategorier av brott.</li>
-            <li>Du går tillbaka med uppåt-pilen under diagrammet.</li>
-            <li>Klicka på en kommun i kartan för att se brott i den kommunen och hur de fördelar sig per Demografiskt Statistikområde (DeSO).</li>
-            <li>Klicka på hus-ikonen upp till vänster i kartan för att se alla kommuner igen.</li>
-            <li>För att ladda ner hela datasetet för alla kommuner i Dalarna i en Excelfil, klicka på <i>Ladda ner hela datasetet</i>.</li>
-            <li>För att spara ett diagram, klicka på den blå ikonen högst uppe till höger i diagrammet. Den dyker upp när du har muspekaren över diagrammet.</li>
-            </ul>
-            </p>
-            <h3>Brottsförebyggande rådets kommunindikatorer</h3>
-            Välj kommun, indikator för anmälda brott respektive för Nationella Trygghetsundersökningen (NTU).<br>
-            <br>
-            2025 års NTU visar 2024 års anmälda brott och självrapporterade utsatthet. Däremot gällande frågorna om självrapporterad otrygghet, oro <br>
-            och upplevda problem, redovisas resultaten för insamlingsåret och handlar om hur respondenterna upplever sin situation vid undersökningstillfället.<br><br>
-            <ul>
-            <li>För att ladda ner hela datasetet för alla kommuner i Dalarna i en Excelfil, klicka på <i>Ladda ner hela datasetet</i>.</li>
-            <li>För att spara ett diagram, klicka på den blå ikonen högst uppe till höger i diagrammet. Den dyker upp när du har muspekaren över diagrammet.</li>
-            </ul>
-            "))
-      ),
+      tabPanel(
+        "Om rapporten",
+        div(
+          style = paste(
+            "margin-bottom: 20px;",
+            "color: #666;",
+            "max-width: 800px;",
+            "font-size: 14px;"
+          ),
+          HTML("
+      <p>
+        Rapporten är skapad av Samhällsanalys, Region Dalarna. Syftet är att
+        avlasta brottsförebyggande tjänstepersoner i kommunerna och på Länsstyrelsen
+        genom att underlätta visualisering och analys av brottsstatistik från
+        Polisen och från Brottsförebyggande rådet (BRÅ). Samhällsanalys har god
+        kompetens att bearbeta och visualisera data medan ovan nämnda tjänstepersoner
+        har god kompetens att bedriva brottsförebyggande arbete. Därmed frigörs tid
+        för de brottsförebyggande aktörerna åt brottsförebyggande arbete, vilket
+        därmed kan bidra till länets utveckling.
+      </p>
 
-      tabPanel("Om rapporten",
-               div(
-                 style = "margin-bottom: 20px; color: #666; max-width: 800px; font-size: 14px;",
-                 HTML("Rapporten är skapad av Samhällsanalys, Region Dalarna. Syftet är att
-               avlasta brottsförebyggande tjänstepersoner i kommunerna och på Länststyrelsen genom att
-               underlätta visualisering och analys av brottsstatistik från Polisen och från
-               Brottsförebyggande rådet (BRÅ). Samhällsanalys har god kompetens att bearbeta och visualisera
-               data medan ovan nämnda tjänstepersoner har god kompetens att bedriva brottsförebyggande
-               arbete. Därmed frigörs tid för de brottsförebyggande aktörerna åt brottsförebyggande arbete vilket
-               därmed kan bidra till länets utveckling.<br><br>
-               <b>Kontaktuppgifter</b><br>
-               <a href='mailto:samhallsanalys@regiondalarna.se?subject=Webbrapport Brottsförebyggande arbete i Dalarna'>Samhällsanalys, Region Dalarna</a> för frågor om webbrapporten.<br>
-               <a href='mailto:malin.kapla@lansstyrelsen.se?subject=Webbrapport Brottsförebyggande arbete i Dalarna'>Brottsförebyggande samordnare, Länsstyrelsen Dalarna</a> för frågor om det brottsförebyggande arbetet i Dalarna.
-               ")
-               )
+      <p>
+        <b>Kontaktuppgifter</b><br>
+        <a href='mailto:samhallsanalys@regiondalarna.se?subject=Webbrapport Brottsförebyggande arbete i Dalarna'>
+          Samhällsanalys, Region Dalarna
+        </a>
+        för frågor om webbrapporten.<br>
+        <a href='mailto:malin.kapla@lansstyrelsen.se?subject=Webbrapport Brottsförebyggande arbete i Dalarna'>
+          Brottsförebyggande samordnare, Länsstyrelsen Dalarna
+        </a>
+        för frågor om det brottsförebyggande arbetet i Dalarna.
+      </p>
+      <br>
+      <h4>Polisstatistik</h4>
+      <p>
+        Här kan du analysera brottsstatistik för Dalarna. Detta verktyg är en
+        prototyp och det färdiga verktyget kommer att publiceras på annan plats.
+        I och med det kommer denna sida att stängas ned.
+      </p>
+
+      <ul>
+        <li>Figurer markerade med handikonen <i>(Klickbar)</i> går att klicka i för att borra ner i statistiken.</li>
+        <li>Klicka på staplarna i det stora diagrammet för att se underkategorier av brott.</li>
+        <li>Du går tillbaka med uppåtpilen under diagrammet.</li>
+        <li>Klicka på en kommun i kartan för att se brott i kommunen och hur de fördelar sig per demografiskt statistikområde (DeSO).</li>
+        <li>Klicka på husikonen uppe till vänster i kartan för att se alla kommuner igen.</li>
+        <li>För att ladda ner hela datasetet för alla kommuner i Dalarna som en Excelfil, klicka på <i>Hela datasetet</i>.</li>
+        <li>För att spara ett diagram, för muspekaren över diagrammet och klicka på den blå ikonen högst upp till höger.</li>
+      </ul>
+
+      <h4>Brottsförebyggande rådets kommunindikatorer</h4>
+      <p>
+        Välj kommun samt indikator för anmälda brott respektive Nationella
+        trygghetsundersökningen (NTU).
+      </p>
+
+      <p>
+        2025 års NTU visar 2024 års anmälda brott och självrapporterade utsatthet.
+        För frågor om självrapporterad otrygghet, oro och upplevda problem redovisas
+        däremot resultaten för insamlingsåret och avser hur respondenterna upplever
+        sin situation vid undersökningstillfället.
+      </p>
+
+      <ul>
+        <li>För att ladda ner hela datasetet för alla kommuner i Dalarna som en Excelfil, klicka på <i>Ladda ner hela datasetet</i>.</li>
+        <li>För att spara ett diagram, för muspekaren över diagrammet och klicka på den blå ikonen högst upp till höger.</li>
+      </ul>
+    ")
+        )
       )
 
     ) # tabsetPanel
