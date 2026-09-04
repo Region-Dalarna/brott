@@ -238,6 +238,19 @@ shinyServer(function(input, output, session) {
       collect()
   })
 
+  # Vilka årmånader har rapporterad data för samtliga Dalarnas kommuner?
+  # Används för att undvika att t.ex. "maj 2025" ser ut att ha kraftigt minskad
+  # brottslighet i Dalarna-vyn bara för att data saknas för 14 av 15 kommuner den månaden.
+  kompletta_manader <- reactive({
+    antal_kommuner_dalarna <- n_distinct(kommun_sf$kommunkod)
+
+    brottsdata() %>%
+      distinct(kommunkod, `inskr årmånad`) %>%
+      count(`inskr årmånad`, name = "antal_kommuner") %>%
+      filter(antal_kommuner >= antal_kommuner_dalarna) %>%
+      dplyr::pull(`inskr årmånad`)
+  })
+
 
   # Lazy load för BRÅ (flik 2)
   bra_kommunindikatorer <- reactiveVal(NULL)
@@ -1153,6 +1166,13 @@ shinyServer(function(input, output, session) {
       df_manad_data <- df_manad_data %>% filter(desokod == vald_deso())
     }
 
+    # När Dalarna (alla kommuner) visas: ta bara med månader där samtliga
+    # kommuner har rapporterat data, annars ser summan ut att minska bara för
+    # att data saknas för en del kommuner den månaden
+    if (vald_kommun() == "Alla") {
+      df_manad_data <- df_manad_data %>% filter(`inskr årmånad` %in% kompletta_manader())
+    }
+
     # Skapa månadsdata med månadsvariabel
     # Optimerat: parsa datum bara på unika årmånad-värden, inte per rad
     manad_lookup <- df_manad_data %>%
@@ -1462,6 +1482,12 @@ shinyServer(function(input, output, session) {
     # Filtrera på vald DeSO om det finns
     if (kartniva() == "deso" && !is.null(vald_deso())) {
       df_veckodag_data <- df_veckodag_data %>% filter(desokod == vald_deso())
+    }
+
+    # När Dalarna (alla kommuner) visas: ta bara med månader där samtliga
+    # kommuner har rapporterat data, för att inte snedvrida veckodagsfördelningen
+    if (vald_kommun() == "Alla") {
+      df_veckodag_data <- df_veckodag_data %>% filter(`inskr årmånad` %in% kompletta_manader())
     }
 
     # Skapa veckodagsdata med veckodagsvariabel
