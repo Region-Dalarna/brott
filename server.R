@@ -180,6 +180,23 @@ diagram_axeltext_storlek <- 11
 diagram_legend_rubrik_storlek <- 10
 diagram_legend_text_storlek <- 9
 
+# ---- Tooltips ovanpå teckenförklaringen ----
+# Leaflet lägger tooltips i kartlagret, som alltid hamnar under kartans kontroller (t.ex. teckenförklaringen)
+# oavsett z-index. När kartan skapas flyttas därför tooltiplagret ut ur kartlagret och får följa
+# kartlagrets förflyttning när kartan panoreras och zoomas.
+js_tooltip_overst <- "function(el, x) {
+  var map = this;
+  var kartlager = map.getPane('mapPane'), tooltiplager = map.getPane('tooltipPane');
+  map.getContainer().appendChild(tooltiplager);
+  var folj = function() {
+    tooltiplager.style.transform = kartlager.style.transform;
+    tooltiplager.style.left = kartlager.style.left;
+    tooltiplager.style.top = kartlager.style.top;
+  };
+  map.on('move zoom viewreset zoomend moveend resize', folj);
+  folj();
+}"
+
 
 # ---- Server ----
 shinyServer(function(input, output, session) {
@@ -639,7 +656,8 @@ shinyServer(function(input, output, session) {
             title = "Visa alla kommuner igen",
             onClick = JS("function(btn, map){ Shiny.setInputValue('reset_map', true); }")
           )
-        )
+        ) %>%
+        htmlwidgets::onRender(js_tooltip_overst)
     }
 
     return(kartobj)
