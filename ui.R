@@ -237,17 +237,17 @@ shinyUI(tagList(
                                           icon = icon("download"))
                        )
                      ),
-                     # Mitten: karta med senaste mätning per kommun
+                     # Mitten: karta med senaste mätning per kommun, i samma storlek som Polisstatistik-fliken
                      column(
                        width = 5,
                        h4("Senaste mätningen per kommun"),
-                       leafletOutput("karta_avlopp", height = "42vh")
+                       leafletOutput("karta_avlopp", height = "70vh")
                      ),
-                     # Höger: stapeldiagram, samma data rankad
+                     # Höger: stapeldiagram, samma höjd som kartan
                      column(
                        width = 5,
                        h4("Senaste mätningen, rankad"),
-                       div(class = "avlopp-diagram-cell",
+                       div(class = "avlopp-diagram-cell avlopp-diagram-cell--rankad",
                            girafeOutput("diagram_avlopp_senaste", height = "100%", width = "100%")
                        )
                      )

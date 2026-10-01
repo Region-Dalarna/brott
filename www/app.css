@@ -391,6 +391,11 @@
   height: 42vh;
   min-height: 260px;
 }
+/* Samma höjd som kartan (#karta_avlopp, se nedan) så att karta och stapeldiagram bildar en rad */
+.avlopp-layout .avlopp-diagram-cell--rankad {
+  height: 70vh;
+  min-height: 420px;
+}
 .avlopp-layout .avlopp-diagram-cell--heatmap {
   height: 40vh;
   min-height: 280px;
@@ -424,6 +429,7 @@
   }
   .avlopp-layout #karta_avlopp { height: 50vh !important; }
   .avlopp-layout .avlopp-diagram-cell,
+  .avlopp-layout .avlopp-diagram-cell--rankad,
   .avlopp-layout .avlopp-diagram-cell--heatmap {
     height: 40vh;
     margin-bottom: 12px;
