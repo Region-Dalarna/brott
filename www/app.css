@@ -393,11 +393,11 @@
 }
 .avlopp-layout .avlopp-filter .form-group { margin-bottom: 0; }
 
-/* De två diagrammen staplade till höger om kartan, i samma höjd så att de bildar ett par -
-   höjden summerar ungefär till kartans 70vh tillsammans med filterraden ovanför. */
+/* De två diagrammen staplade till höger om kartan. Höjden sätts per diagram som inline style
+   från servern (se avlopp_bar_hojd()/avlopp_heatmap_hojd()) efter antal kommuner med data,
+   så den växer av sig själv i takt med att fler kommuner tillkommer - CSS:en här sköter bara
+   marginal och att girafe-widgeten fyller sin tilldelade höjd. */
 .avlopp-layout .avlopp-diagram-cell {
-  height: 31vh;
-  min-height: 230px;
   margin-bottom: 16px;
 }
 .avlopp-layout .avlopp-diagram-cell .girafe_container_std,
@@ -416,7 +416,4 @@
     flex: 0 0 100% !important;
   }
   .avlopp-layout #karta_avlopp { height: 50vh !important; }
-  .avlopp-layout .avlopp-diagram-cell {
-    height: 40vh;
-  }
 }

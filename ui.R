@@ -239,12 +239,11 @@ shinyUI(tagList(
                                            choices = NULL)
                            )
                        ),
-                       div(class = "avlopp-diagram-cell",
-                           girafeOutput("diagram_avlopp_senaste", height = "100%", width = "100%")
-                       ),
-                       div(class = "avlopp-diagram-cell",
-                           girafeOutput("diagram_avlopp_heatmap", height = "100%", width = "100%")
-                       )
+                       # Höjden sätts dynamiskt i servern efter antal kommuner med data, så att
+                       # diagrammen inte har onödigt tomrum idag men växer av sig själva i takt
+                       # med att fler kommuner får mätningar.
+                       uiOutput("avlopp_diagram_senaste_ui"),
+                       uiOutput("avlopp_diagram_heatmap_ui")
                      )
                    )
                )

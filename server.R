@@ -2109,6 +2109,38 @@ shinyServer(function(input, output, session) {
     avlopp_over_tid(avloppsmatningar(), input$avlopp_substans, avlopp_standardenhet)
   })
 
+  # Diagramhöjd i pixlar, räknad från antal kommuner som faktiskt ska visas - så att
+  # diagrammen inte har onödigt tomrum idag (bara fyra kommuner), men växer av sig själva
+  # i takt med att fler kommuner får mätningar, upp till ett tak som matchar kartans höjd.
+  avlopp_diagramhojd <- function(n, pixlar_per_rad, fast_omkostnad) {
+    n <- max(n, 1)
+    min(620, max(230, n * pixlar_per_rad + fast_omkostnad))
+  }
+
+  avlopp_bar_hojd <- reactive({
+    n <- avlopp_senaste_df() %>% dplyr::filter(!is.na(varde)) %>% nrow()
+    avlopp_diagramhojd(n, pixlar_per_rad = 46, fast_omkostnad = 90)
+  })
+
+  avlopp_heatmap_hojd <- reactive({
+    n <- avlopp_tid_df() %>% dplyr::pull(kommun) %>% unique() %>% length()
+    avlopp_diagramhojd(n, pixlar_per_rad = 42, fast_omkostnad = 110)
+  })
+
+  output$avlopp_diagram_senaste_ui <- renderUI({
+    req(avlopp_bar_hojd())
+    div(class = "avlopp-diagram-cell",
+        style = paste0("height:", avlopp_bar_hojd(), "px;"),
+        girafeOutput("diagram_avlopp_senaste", height = "100%", width = "100%"))
+  })
+
+  output$avlopp_diagram_heatmap_ui <- renderUI({
+    req(avlopp_heatmap_hojd())
+    div(class = "avlopp-diagram-cell",
+        style = paste0("height:", avlopp_heatmap_hojd(), "px;"),
+        girafeOutput("diagram_avlopp_heatmap", height = "100%", width = "100%"))
+  })
+
   # --- Karta: senaste mätningen per kommun ---
   output$karta_avlopp <- renderLeaflet({
     req(avlopp_senaste_df())
@@ -2246,7 +2278,7 @@ shinyServer(function(input, output, session) {
 
     p <- ggplot(plot_data, aes(x = period, y = kommun, fill = varde)) +
       geom_tile_interactive(aes(tooltip = etikett, data_id = paste(kommun, period)),
-                            color = "white", linewidth = 0.6) +
+                            color = "#d9d9d9", linewidth = 0.5) +
       scale_fill_gradient(low = "#eaf4f8", high = "#0f7090", na.value = "#e8e8e8",
                          name = "mg/1000 inv\n& dygn") +
       labs(x = NULL, y = NULL,
@@ -2263,7 +2295,7 @@ shinyServer(function(input, output, session) {
         plot.caption = element_text(
           size = diagram_caption_storlek, color = "#666", hjust = 0,
           margin = margin(t = 6)),
-        axis.text.x = element_text(angle = 0, hjust = 0.5, size = diagram_axeltext_storlek)
+        axis.text.x = element_text(angle = 45, hjust = 1, size = diagram_axeltext_storlek)
       )
 
     girafe(
