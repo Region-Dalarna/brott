@@ -3938,7 +3938,7 @@
       "RemoteRepo": "rdpaket",
       "RemoteSubdir": "packages/rdshinyappar",
       "RemoteRef": "main",
-      "RemoteSha": "1e08c916d27c4eae7a43d925519f8155d1fe69ad"
+      "RemoteSha": "90bb3b1fab0f077ffc7bab0c552c17ea1f811dfd"
     },
     "readr": {
       "Package": "readr",
