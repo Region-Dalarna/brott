@@ -221,41 +221,27 @@ shinyUI(tagList(
       tabPanel("Avloppsmätningar",
                div(class = "avlopp-layout",
                    fluidRow(
-                     # Vänster: ämnesval + nedladdning
+                     # Vänster: karta, exakt samma storlek/form som i Polisstatistik-fliken
                      column(
-                       width = 2,
-                       class = "avlopp-col-vanster",
-                       selectInput("avlopp_kategori", "Kategori:",
-                                   choices = c("Narkotika", "Doping")),
-                       selectInput("avlopp_substans", "Välj ämne:",
-                                   choices = NULL),
-                       p(class = "avlopp-matt-info",
-                         "Mått: total halt i avloppsvattnet, mg per 1000 invånare och dygn."),
-                       div(class = "avlopp-downloads",
-                           downloadButton("export_excel_avlopp",
-                                          "Ladda ner hela datasetet",
-                                          icon = icon("download"))
-                       )
-                     ),
-                     # Mitten: karta med senaste mätning per kommun, i samma storlek som Polisstatistik-fliken
-                     column(
-                       width = 5,
-                       h4("Senaste mätningen per kommun"),
+                       width = 4,
                        leafletOutput("karta_avlopp", height = "70vh")
                      ),
-                     # Höger: stapeldiagram, samma höjd som kartan
+                     # Höger: ämnesfilter överst, sedan de två diagrammen staplade
                      column(
-                       width = 5,
-                       h4("Senaste mätningen, rankad"),
-                       div(class = "avlopp-diagram-cell avlopp-diagram-cell--rankad",
+                       width = 8,
+                       div(class = "diagram-toolbar",
+                           div(
+                             selectInput("avlopp_kategori", "Kategori:",
+                                         choices = c("Narkotika", "Doping"))
+                           ),
+                           div(
+                             selectInput("avlopp_substans", "Välj ämne:",
+                                         choices = NULL)
+                           )
+                       ),
+                       div(class = "avlopp-diagram-cell",
                            girafeOutput("diagram_avlopp_senaste", height = "100%", width = "100%")
-                       )
-                     )
-                   ),
-                   fluidRow(
-                     column(
-                       width = 12,
-                       h4("Utveckling över tid, per säsong"),
+                       ),
                        div(class = "avlopp-diagram-cell avlopp-diagram-cell--heatmap",
                            girafeOutput("diagram_avlopp_heatmap", height = "100%", width = "100%")
                        )

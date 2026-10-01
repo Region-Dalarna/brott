@@ -364,41 +364,39 @@
   padding-right: 4px;
 }
 
-.avlopp-layout .avlopp-col-vanster {
-  display: flex;
-  flex-direction: column;
-}
-.avlopp-layout .avlopp-matt-info {
-  color: #666;
-  font-size: 12px;
-  margin-top: 4px;
-}
-.avlopp-layout .avlopp-downloads {
-  margin-top: 12px;
-}
-.avlopp-layout .avlopp-downloads .btn {
-  width: 100%;
-  white-space: normal;
-  line-height: 1.2;
-  text-align: left;
-  min-height: 54px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* Karta i exakt samma storlek/form som i Polisstatistik-fliken */
+.avlopp-layout #karta_avlopp { height: 70vh !important; }
+@media (min-width: 992px) {
+  .avlopp-layout > .row > .col-sm-4 {
+    flex: 0 0 28%;
+    max-width: 28%;
+  }
+  .avlopp-layout > .row > .col-sm-8 {
+    flex: 0 0 72%;
+    max-width: 72%;
+  }
 }
 
-.avlopp-layout .avlopp-diagram-cell {
-  height: 42vh;
-  min-height: 260px;
+/* Filtertoolbar ovanför diagrammen - kategori och ämne sida vid sida */
+.avlopp-layout .diagram-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 50px;
 }
-/* Samma höjd som kartan (#karta_avlopp, se nedan) så att karta och stapeldiagram bildar en rad */
-.avlopp-layout .avlopp-diagram-cell--rankad {
-  height: 70vh;
-  min-height: 420px;
+.avlopp-layout .diagram-toolbar > div { flex: 1; min-width: 0; }
+.avlopp-layout .diagram-toolbar .form-group { margin-bottom: 0; }
+
+/* De två diagrammen staplade till höger om kartan - höjden summerar ungefär till kartans 70vh */
+.avlopp-layout .avlopp-diagram-cell {
+  height: 30vh;
+  min-height: 220px;
+  margin-bottom: 12px;
 }
 .avlopp-layout .avlopp-diagram-cell--heatmap {
-  height: 40vh;
-  min-height: 280px;
+  height: 34vh;
+  min-height: 240px;
 }
 .avlopp-layout .avlopp-diagram-cell .girafe_container_std,
 .avlopp-layout .avlopp-diagram-cell .html-widget,
@@ -408,30 +406,16 @@
   background: transparent !important;
 }
 
-@media (min-width: 992px) {
-  .avlopp-layout > .row > .col-sm-2 {
-    flex: 0 0 16%;
-    max-width: 16%;
-  }
-  .avlopp-layout > .row > .col-sm-5 {
-    flex: 0 0 42%;
-    max-width: 42%;
-  }
-}
-
 @media (max-width: 991px) {
-  .avlopp-layout .col-sm-2,
-  .avlopp-layout .col-sm-5,
-  .avlopp-layout .col-sm-12 {
+  .avlopp-layout .col-sm-4,
+  .avlopp-layout .col-sm-8 {
     width: 100% !important;
     max-width: 100% !important;
     flex: 0 0 100% !important;
   }
   .avlopp-layout #karta_avlopp { height: 50vh !important; }
   .avlopp-layout .avlopp-diagram-cell,
-  .avlopp-layout .avlopp-diagram-cell--rankad,
   .avlopp-layout .avlopp-diagram-cell--heatmap {
     height: 40vh;
-    margin-bottom: 12px;
   }
 }

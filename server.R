@@ -2088,6 +2088,8 @@ shinyServer(function(input, output, session) {
 
     valt <- if (isTruthy(input$avlopp_substans) && input$avlopp_substans %in% amnen) {
       input$avlopp_substans
+    } else if ("Cannabis (THCA-metabolit)" %in% amnen) {
+      "Cannabis (THCA-metabolit)"
     } else {
       amnen[1]
     }
@@ -2167,6 +2169,11 @@ shinyServer(function(input, output, session) {
         labFormat = labelFormat(big.mark = " ", digits = 1),
         className = "info legend kompakt-legend",
         na.label = "Ingen mätning"
+      ) %>%
+      addControl(
+        htmltools::HTML(paste0(input$avlopp_substans, "<br>Senaste mätning")),
+        position = "topright",
+        className = "map-filter-text"
       )
   })
 
@@ -2194,7 +2201,7 @@ shinyServer(function(input, output, session) {
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = NULL, y = "mg per 1000 inv. & dygn",
-           title = input$avlopp_substans,
+           title = paste0(input$avlopp_substans, " – senaste mätningen per kommun"),
            caption = KALLA_RISE) +
       theme_minimal(base_size = diagram_text_storlek) +
       theme(
@@ -2242,7 +2249,9 @@ shinyServer(function(input, output, session) {
                             color = "white", linewidth = 0.6) +
       scale_fill_gradient(low = "#eaf4f8", high = "#0f7090", na.value = "#e8e8e8",
                          name = "mg/1000 inv\n& dygn") +
-      labs(x = NULL, y = NULL, title = input$avlopp_substans, caption = KALLA_RISE) +
+      labs(x = NULL, y = NULL,
+           title = paste0(input$avlopp_substans, " – utveckling över tid, per säsong"),
+           caption = KALLA_RISE) +
       theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
@@ -2267,19 +2276,5 @@ shinyServer(function(input, output, session) {
       )
     )
   })
-
-  # --- Nedladdning: hela avloppsdatasetet ---
-  # OBS: provdatum och rapportnummer tas uttryckligen INTE med - appen är publik och ska bara
-  # visa säsong/år, aldrig exakt provtagningsdatum (rapportnummer utelämnas också, eftersom
-  # det löper i tagningsordning och därmed indirekt avslöjar den inbördes kronologin).
-  output$export_excel_avlopp <- downloadHandler(
-    filename = function() paste0("avloppsmatningar_", Sys.Date(), ".xlsx"),
-    content = function(file) {
-      df <- avloppsmatningar() %>%
-        dplyr::select(kommunkod, kommun, provsasong, period,
-                      amnesgrupp, substans, enhet, varde, flagga)
-      write_xlsx(df, file)
-    }
-  )
 
 })  # slut shinyServer()
