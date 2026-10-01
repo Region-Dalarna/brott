@@ -229,20 +229,20 @@ shinyUI(tagList(
                      # Höger: ämnesfilter överst, sedan de två diagrammen staplade
                      column(
                        width = 8,
-                       div(class = "diagram-toolbar",
-                           div(
-                             selectInput("avlopp_kategori", "Kategori:",
-                                         choices = c("Narkotika", "Doping"))
+                       div(class = "avlopp-filterrad",
+                           div(class = "avlopp-filter",
+                               selectInput("avlopp_kategori", "Kategori:",
+                                           choices = c("Narkotika", "Doping"))
                            ),
-                           div(
-                             selectInput("avlopp_substans", "Välj ämne:",
-                                         choices = NULL)
+                           div(class = "avlopp-filter",
+                               selectInput("avlopp_substans", "Välj ämne:",
+                                           choices = NULL)
                            )
                        ),
                        div(class = "avlopp-diagram-cell",
                            girafeOutput("diagram_avlopp_senaste", height = "100%", width = "100%")
                        ),
-                       div(class = "avlopp-diagram-cell avlopp-diagram-cell--heatmap",
+                       div(class = "avlopp-diagram-cell",
                            girafeOutput("diagram_avlopp_heatmap", height = "100%", width = "100%")
                        )
                      )

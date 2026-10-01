@@ -2217,7 +2217,7 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = 4.5, bg = "transparent",
+      ggobj = p, width_svg = 9, height_svg = 4.2, bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:0.5;"),
@@ -2267,7 +2267,7 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = 4, bg = "transparent",
+      ggobj = p, width_svg = 9, height_svg = 4.2, bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:0.5;"),

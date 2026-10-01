@@ -377,26 +377,28 @@
   }
 }
 
-/* Filtertoolbar ovanför diagrammen - kategori och ämne sida vid sida */
-.avlopp-layout .diagram-toolbar {
+/* Filterrad ovanför diagrammen - kategori och ämne hålls kompakta och tillsammans till vänster,
+   i stället för utspridda över hela bredden, med en tunn linje som avgränsar mot diagrammen. */
+.avlopp-layout .avlopp-filterrad {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  margin-bottom: 12px;
-  min-height: 50px;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #dfe3e6;
 }
-.avlopp-layout .diagram-toolbar > div { flex: 1; min-width: 0; }
-.avlopp-layout .diagram-toolbar .form-group { margin-bottom: 0; }
+.avlopp-layout .avlopp-filter {
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+.avlopp-layout .avlopp-filter .form-group { margin-bottom: 0; }
 
-/* De två diagrammen staplade till höger om kartan - höjden summerar ungefär till kartans 70vh */
+/* De två diagrammen staplade till höger om kartan, i samma höjd så att de bildar ett par -
+   höjden summerar ungefär till kartans 70vh tillsammans med filterraden ovanför. */
 .avlopp-layout .avlopp-diagram-cell {
-  height: 30vh;
-  min-height: 220px;
-  margin-bottom: 12px;
-}
-.avlopp-layout .avlopp-diagram-cell--heatmap {
-  height: 34vh;
-  min-height: 240px;
+  height: 31vh;
+  min-height: 230px;
+  margin-bottom: 16px;
 }
 .avlopp-layout .avlopp-diagram-cell .girafe_container_std,
 .avlopp-layout .avlopp-diagram-cell .html-widget,
@@ -414,8 +416,7 @@
     flex: 0 0 100% !important;
   }
   .avlopp-layout #karta_avlopp { height: 50vh !important; }
-  .avlopp-layout .avlopp-diagram-cell,
-  .avlopp-layout .avlopp-diagram-cell--heatmap {
+  .avlopp-layout .avlopp-diagram-cell {
     height: 40vh;
   }
 }
