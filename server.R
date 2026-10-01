@@ -2117,6 +2117,22 @@ shinyServer(function(input, output, session) {
         by = "kommunkod"
       )
 
+    # Om ämnet aldrig gått att kvantifiera i någon kommun (t.ex. bara "ej_detekterad")
+    # finns inget intervall att färgsätta efter - visa en tom karta med ett meddelande
+    # i stället för att krascha på colorNumeric().
+    if (all(is.na(df_map$varde))) {
+      return(
+        leaflet(df_map) %>%
+          addProviderTiles("OpenStreetMap.Mapnik", options = providerTileOptions(opacity = 0.45)) %>%
+          addPolygons(fillOpacity = 0.15, color = "#555555", weight = 0.7, fillColor = "#e8e8e8") %>%
+          addControl(
+            paste0("Inga kvantifierbara mätningar av ", tolower(input$avlopp_substans), " än"),
+            position = "topright",
+            className = "map-filter-text"
+          )
+      )
+    }
+
     pal <- colorNumeric(palette = "YlOrRd", domain = df_map$varde, na.color = "#e8e8e8")
 
     etiketter <- purrr::pmap(
