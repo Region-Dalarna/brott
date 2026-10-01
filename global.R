@@ -9,7 +9,6 @@ library(ggtext)
 library(lubridate)
 library(rdshinyappar)
 
-
 telemetry <- skapa_telemetry("brott")                     # för telemetry-paketet, mäta aktivitet i appen
 
 options(dplyr.summarise.inform = FALSE)
