@@ -9,7 +9,7 @@ library(ggtext)
 library(lubridate)
 library(rdshinyappar)
 
-source("https://raw.githubusercontent.com/Region-Dalarna/funktioner/main/func_shinyappar.R", encoding = "utf-8", echo = FALSE)
+#source("https://raw.githubusercontent.com/Region-Dalarna/funktioner/main/func_shinyappar.R", encoding = "utf-8", echo = FALSE)
 
 telemetry <- skapa_telemetry("brott")                     # för telemetry-paketet, mäta aktivitet i appen
 
