@@ -350,3 +350,82 @@
 .polisstat-layout .diagram-cell--klickbar .html-widget {
   height: calc(100% - 22px) !important;
 }
+
+/* ---- Flik: Avloppsmätningar ---- */
+.avlopp-layout {
+  padding: 0 4px;
+}
+.avlopp-layout > .row {
+  margin-left: -4px;
+  margin-right: -4px;
+}
+.avlopp-layout > .row > [class*="col-"] {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.avlopp-layout .avlopp-col-vanster {
+  display: flex;
+  flex-direction: column;
+}
+.avlopp-layout .avlopp-matt-info {
+  color: #666;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.avlopp-layout .avlopp-downloads {
+  margin-top: 12px;
+}
+.avlopp-layout .avlopp-downloads .btn {
+  width: 100%;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: left;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avlopp-layout .avlopp-diagram-cell {
+  height: 42vh;
+  min-height: 260px;
+}
+.avlopp-layout .avlopp-diagram-cell--heatmap {
+  height: 40vh;
+  min-height: 280px;
+}
+.avlopp-layout .avlopp-diagram-cell .girafe_container_std,
+.avlopp-layout .avlopp-diagram-cell .html-widget,
+.avlopp-layout .avlopp-diagram-cell svg {
+  height: 100% !important;
+  width: 100% !important;
+  background: transparent !important;
+}
+
+@media (min-width: 992px) {
+  .avlopp-layout > .row > .col-sm-2 {
+    flex: 0 0 16%;
+    max-width: 16%;
+  }
+  .avlopp-layout > .row > .col-sm-5 {
+    flex: 0 0 42%;
+    max-width: 42%;
+  }
+}
+
+@media (max-width: 991px) {
+  .avlopp-layout .col-sm-2,
+  .avlopp-layout .col-sm-5,
+  .avlopp-layout .col-sm-12 {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+  }
+  .avlopp-layout #karta_avlopp { height: 50vh !important; }
+  .avlopp-layout .avlopp-diagram-cell,
+  .avlopp-layout .avlopp-diagram-cell--heatmap {
+    height: 40vh;
+    margin-bottom: 12px;
+  }
+}

@@ -7,6 +7,7 @@ library(sf)
 library(writexl)
 library(ggtext)
 library(lubridate)
+library(rdshinyappar)
 
 source("https://raw.githubusercontent.com/Region-Dalarna/funktioner/main/func_shinyappar.R", encoding = "utf-8", echo = FALSE)
 
@@ -41,6 +42,11 @@ bef_df <- tbl(shiny_uppkoppling_las("oppna_data"), dbplyr::in_schema("brottsfore
 #   filter(variabel != "Antal svarande i NTU.") %>%
 #   collect()
 
+
+# Avloppsmätningar (RISE) ligger i sekretessdatabasen och läses med rollen shiny_las_sekretess,
+# samma roll som shb-appen använder för sitt sekretesskyddade schema.
+avlopp_stat_tabell <- list(databas = "sekretess", anvandare = "shiny_las_sekretess",
+                           schema = "rise", tabell = "avloppsmatningar")
 
 # färgvektor
 rus_tre_fokus <- c("#93cec1", "#178571", "#000000")

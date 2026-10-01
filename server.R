@@ -170,6 +170,7 @@ summering_med_bef <- function(df, join_var, bef_df, period, extra_grp_var = NULL
 # ---- Källhänvisningar ----
 KALLA_POLISEN <- "Källa: Polisen, bearbetning av Samhällsanalys, Region Dalarna"
 KALLA_BRA     <- "Källa: Brottsförebyggande rådet (BRÅ), bearbetning av Samhällsanalys, Region Dalarna"
+KALLA_RISE    <- "Källa: RISE, avloppsvattenanalys av narkotika och dopingpreparat. Bearbetning: Samhällsanalys, Region Dalarna"
 
 # ---- Diagramtypografi ----
 diagram_text_storlek <- 11
@@ -2062,4 +2063,207 @@ shinyServer(function(input, output, session) {
                           opts_hover(css = "stroke-width:0;fill-opacity:1;cursor:default;"),
                           opts_selection(type = "none")))
   })
+
+
+  # ---- Flik 3: Avloppsmätningar (RISE) ----
+
+  # Lazy load, precis som BRÅ-datan - tabellen behövs inte förrän användaren öppnar fliken
+  avloppsmatningar <- reactiveVal(NULL)
+
+  session$onFlushed(function() {
+    avloppsmatningar(hamta_avloppsmatningar(avlopp_stat_tabell))
+  }, once = TRUE)
+
+  # Uppdatera ämnesvalet när datan laddats eller kategori (Narkotika/Doping) ändras
+  observeEvent(list(avloppsmatningar(), input$avlopp_kategori), {
+    req(avloppsmatningar())
+
+    amnen <- avloppsmatningar() %>%
+      dplyr::filter(amnesgrupp == input$avlopp_kategori) %>%
+      dplyr::pull(substans) %>%
+      unique() %>%
+      sort()
+
+    if (length(amnen) == 0) return()
+
+    valt <- if (isTruthy(input$avlopp_substans) && input$avlopp_substans %in% amnen) {
+      input$avlopp_substans
+    } else {
+      amnen[1]
+    }
+
+    updateSelectInput(session, "avlopp_substans", choices = amnen, selected = valt)
+  })
+
+  # Senaste mätningen per kommun, för valt ämne och appens standardmått
+  avlopp_senaste_df <- reactive({
+    req(avloppsmatningar(), input$avlopp_substans)
+    avlopp_senaste_per_kommun(avloppsmatningar(), input$avlopp_substans, avlopp_standardenhet)
+  })
+
+  # All historik för valt ämne, en rad per kommun och säsong - underlag för heatmapen
+  avlopp_tid_df <- reactive({
+    req(avloppsmatningar(), input$avlopp_substans)
+    avlopp_over_tid(avloppsmatningar(), input$avlopp_substans, avlopp_standardenhet)
+  })
+
+  # --- Karta: senaste mätningen per kommun ---
+  output$karta_avlopp <- renderLeaflet({
+    req(avlopp_senaste_df())
+
+    df_map <- kommun_sf %>%
+      dplyr::left_join(
+        avlopp_senaste_df() %>% dplyr::select(kommunkod, period, varde, flaggor),
+        by = "kommunkod"
+      )
+
+    pal <- colorNumeric(palette = "YlOrRd", domain = df_map$varde, na.color = "#e8e8e8")
+
+    etiketter <- purrr::pmap(
+      list(df_map$kommunnamn, df_map$varde, df_map$period, df_map$flaggor),
+      function(namn, varde, period, flaggor) {
+        if (is.na(varde)) {
+          htmltools::HTML(paste0(namn, "<br><i>Ingen mätning av ", tolower(input$avlopp_substans), "</i>"))
+        } else {
+          htmltools::HTML(paste0(
+            namn, "<br>",
+            "<b>", format(round(varde, 1), big.mark = " ", decimal.mark = ","), "</b> mg/1000 inv & dygn<br>",
+            "<i>", period, "</i>",
+            if (nzchar(flaggor)) paste0("<br><span style='color:#ae2d3a'>", flaggor, "</span>") else ""
+          ))
+        }
+      }
+    )
+
+    leaflet(df_map) %>%
+      addProviderTiles("OpenStreetMap.Mapnik", options = providerTileOptions(opacity = 0.45)) %>%
+      addPolygons(
+        fillOpacity = ~ifelse(is.na(varde), 0.25, 0.75),
+        color       = "#555555",
+        weight      = 0.7,
+        fillColor   = ~ifelse(is.na(varde), "#e8e8e8", pal(varde)),
+        label       = etiketter,
+        highlightOptions = highlightOptions(weight = 2, color = "#000000", bringToFront = FALSE)
+      ) %>%
+      addLegend(
+        "bottomleft", pal = pal, values = ~varde,
+        title = htmltools::HTML(paste0(input$avlopp_substans, "<br><small>mg/1000 inv & dygn</small>")),
+        labFormat = labelFormat(big.mark = " ", digits = 1),
+        className = "info legend kompakt-legend",
+        na.label = "Ingen mätning"
+      )
+  })
+
+  # --- Stapeldiagram: senaste mätningen, rankad ---
+  output$diagram_avlopp_senaste <- renderGirafe({
+    req(avlopp_senaste_df())
+
+    plot_data <- avlopp_senaste_df() %>%
+      dplyr::filter(!is.na(varde)) %>%
+      mutate(
+        kommun  = forcats::fct_reorder(kommun, varde),
+        etikett = paste0(kommun, ": ", format(round(varde, 1), big.mark = " ", decimal.mark = ","),
+                         " mg/1000 inv & dygn\n", period,
+                         ifelse(nzchar(flaggor), paste0("\n", flaggor), ""))
+      )
+
+    if (nrow(plot_data) == 0) {
+      return(girafe(ggobj = ggplot() + theme_void() +
+                      labs(title = "Inga mätningar av valt ämne ännu"), bg = "transparent"))
+    }
+
+    p <- ggplot(plot_data, aes(x = kommun, y = varde)) +
+      geom_col_interactive(aes(tooltip = etikett, data_id = kommun), fill = "#0f7090") +
+      coord_flip() +
+      scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
+                         labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
+      labs(x = NULL, y = "mg per 1000 inv. & dygn",
+           title = input$avlopp_substans,
+           caption = KALLA_RISE) +
+      theme_minimal(base_size = diagram_text_storlek) +
+      theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
+        plot.title = element_textbox_simple(
+          size = diagram_rubrik_storlek, face = "bold",
+          margin = margin(b = 8), width = unit(1, "npc")),
+        plot.caption = element_text(
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
+          margin = margin(t = 6)),
+        plot.margin = margin(t = 12, r = 10, b = 8, l = 10)
+      )
+
+    girafe(
+      ggobj = p, width_svg = 9, height_svg = 4.5, bg = "transparent",
+      options = list(
+        opts_sizing(rescale = TRUE, width = 1),
+        opts_hover_inv(css = "opacity:0.5;"),
+        opts_hover(css = "stroke:#000;stroke-width:1px;"),
+        opts_selection(type = "none")
+      )
+    )
+  })
+
+  # --- Heatmap: utveckling över tid, kommun x säsong ---
+  output$diagram_avlopp_heatmap <- renderGirafe({
+    req(avlopp_tid_df())
+
+    plot_data <- avlopp_tid_df() %>%
+      mutate(
+        etikett = paste0(kommun, ", ", period, ": ",
+                         ifelse(is.na(varde), "ingen mätning",
+                                paste0(format(round(varde, 1), big.mark = " ", decimal.mark = ","),
+                                       " mg/1000 inv & dygn")),
+                         ifelse(nzchar(flaggor), paste0("\n", flaggor), ""))
+      )
+
+    if (nrow(plot_data) == 0) {
+      return(girafe(ggobj = ggplot() + theme_void(), bg = "transparent"))
+    }
+
+    p <- ggplot(plot_data, aes(x = period, y = kommun, fill = varde)) +
+      geom_tile_interactive(aes(tooltip = etikett, data_id = paste(kommun, period)),
+                            color = "white", linewidth = 0.6) +
+      scale_fill_gradient(low = "#eaf4f8", high = "#0f7090", na.value = "#e8e8e8",
+                         name = "mg/1000 inv\n& dygn") +
+      labs(x = NULL, y = NULL, title = input$avlopp_substans, caption = KALLA_RISE) +
+      theme_minimal(base_size = diagram_text_storlek) +
+      theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
+        panel.grid = element_blank(),
+        plot.title = element_textbox_simple(
+          size = diagram_rubrik_storlek, face = "bold",
+          margin = margin(b = 8), width = unit(1, "npc")),
+        plot.caption = element_text(
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
+          margin = margin(t = 6)),
+        axis.text.x = element_text(angle = 0, hjust = 0.5, size = diagram_axeltext_storlek)
+      )
+
+    girafe(
+      ggobj = p, width_svg = 9, height_svg = 4, bg = "transparent",
+      options = list(
+        opts_sizing(rescale = TRUE, width = 1),
+        opts_hover_inv(css = "opacity:0.5;"),
+        opts_hover(css = "stroke:#000;stroke-width:1px;"),
+        opts_selection(type = "none")
+      )
+    )
+  })
+
+  # --- Nedladdning: hela avloppsdatasetet ---
+  # OBS: provdatum och rapportnummer tas uttryckligen INTE med - appen är publik och ska bara
+  # visa säsong/år, aldrig exakt provtagningsdatum (rapportnummer utelämnas också, eftersom
+  # det löper i tagningsordning och därmed indirekt avslöjar den inbördes kronologin).
+  output$export_excel_avlopp <- downloadHandler(
+    filename = function() paste0("avloppsmatningar_", Sys.Date(), ".xlsx"),
+    content = function(file) {
+      df <- avloppsmatningar() %>%
+        dplyr::select(kommunkod, kommun, provsasong, period,
+                      amnesgrupp, substans, enhet, varde, flagga)
+      write_xlsx(df, file)
+    }
+  )
+
 })  # slut shinyServer()
