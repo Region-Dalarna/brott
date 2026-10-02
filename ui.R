@@ -243,7 +243,12 @@ shinyUI(tagList(
                        # diagrammen inte har onödigt tomrum idag men växer av sig själva i takt
                        # med att fler kommuner får mätningar.
                        uiOutput("avlopp_diagram_senaste_ui"),
-                       uiOutput("avlopp_diagram_heatmap_ui")
+                       div(class = "avlopp-tid-toolbar",
+                           radioButtons("avlopp_vy", NULL,
+                                        choices = c("Linjediagram" = "linje", "Heatmap" = "heatmap"),
+                                        selected = "linje", inline = TRUE)
+                       ),
+                       uiOutput("avlopp_diagram_tid_ui")
                      )
                    )
                )

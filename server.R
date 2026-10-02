@@ -2122,7 +2122,9 @@ shinyServer(function(input, output, session) {
     avlopp_diagramhojd(n, pixlar_per_rad = 46, fast_omkostnad = 90)
   })
 
-  avlopp_heatmap_hojd <- reactive({
+  # Samma höjdlogik för "utveckling över tid", oavsett om den visas som linjediagram eller
+  # heatmap - linjediagrammet har inga rader men ska ändå få mer rum när fler kommuner har linjer.
+  avlopp_tid_hojd <- reactive({
     n <- avlopp_tid_df() %>% dplyr::pull(kommun) %>% unique() %>% length()
     avlopp_diagramhojd(n, pixlar_per_rad = 42, fast_omkostnad = 110)
   })
@@ -2134,11 +2136,14 @@ shinyServer(function(input, output, session) {
         girafeOutput("diagram_avlopp_senaste", height = "100%", width = "100%"))
   })
 
-  output$avlopp_diagram_heatmap_ui <- renderUI({
-    req(avlopp_heatmap_hojd())
+  # Växlar mellan linjediagram (standard) och heatmap för "utveckling över tid" - bara det
+  # valda diagrammets output läggs in i DOM:en, så det andra beräknas aldrig i onödan.
+  output$avlopp_diagram_tid_ui <- renderUI({
+    req(avlopp_tid_hojd())
+    diagram_id <- if (identical(input$avlopp_vy, "heatmap")) "diagram_avlopp_heatmap" else "diagram_avlopp_tid_linje"
     div(class = "avlopp-diagram-cell",
-        style = paste0("height:", avlopp_heatmap_hojd(), "px;"),
-        girafeOutput("diagram_avlopp_heatmap", height = "100%", width = "100%"))
+        style = paste0("height:", avlopp_tid_hojd(), "px;"),
+        girafeOutput(diagram_id, height = "100%", width = "100%"))
   })
 
   # --- Karta: senaste mätningen per kommun ---
@@ -2304,6 +2309,64 @@ shinyServer(function(input, output, session) {
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:0.5;"),
         opts_hover(css = "stroke:#000;stroke-width:1px;"),
+        opts_selection(type = "none")
+      )
+    )
+  })
+
+  # --- Linjediagram: utveckling över tid, en linje per kommun (standardvyn) ---
+  output$diagram_avlopp_tid_linje <- renderGirafe({
+    req(avlopp_tid_df())
+
+    plot_data <- avlopp_tid_df() %>%
+      dplyr::arrange(kommun, sasongsnyckel) %>%
+      dplyr::group_by(kommun) %>%
+      # Bryter linjen i separata segment vid luckor (ej detekterat/ej provtaget), så att den
+      # aldrig av misstag bygger en bro över en säsong där kommunen saknar mätbart värde.
+      dplyr::mutate(segment = paste0(kommun, "_", cumsum(is.na(varde)))) %>%
+      dplyr::ungroup() %>%
+      mutate(
+        etikett = paste0(kommun, ", ", period, ": ",
+                         ifelse(is.na(varde), "ingen mätning",
+                                paste0(format(round(varde, 1), big.mark = " ", decimal.mark = ","),
+                                       " mg/1000 inv & dygn")),
+                         ifelse(nzchar(flaggor), paste0("\n", flaggor), ""))
+      )
+
+    if (nrow(plot_data) == 0 || all(is.na(plot_data$varde))) {
+      return(girafe(ggobj = ggplot() + theme_void() +
+                      labs(title = "Inga mätningar av valt ämne ännu"), bg = "transparent"))
+    }
+
+    p <- ggplot(plot_data, aes(x = period, y = varde, group = segment, color = kommun)) +
+      geom_line(linewidth = 1, na.rm = TRUE) +
+      geom_point_interactive(aes(tooltip = etikett, data_id = paste(kommun, period)),
+                             size = 2, na.rm = TRUE) +
+      scale_color_viridis_d(end = 0.85, name = NULL) +
+      scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
+                         labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
+      labs(x = NULL, y = "mg per 1000 inv. & dygn",
+           title = paste0(input$avlopp_substans, " – utveckling över tid, per säsong"),
+           caption = KALLA_RISE) +
+      theme_minimal(base_size = diagram_text_storlek) +
+      theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
+        plot.title = element_textbox_simple(
+          size = diagram_rubrik_storlek, face = "bold",
+          margin = margin(b = 8), width = unit(1, "npc")),
+        plot.caption = element_text(
+          size = diagram_caption_storlek, color = "#666", hjust = 0,
+          margin = margin(t = 6)),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = diagram_axeltext_storlek)
+      )
+
+    girafe(
+      ggobj = p, width_svg = 9, height_svg = 4.2, bg = "transparent",
+      options = list(
+        opts_sizing(rescale = TRUE, width = 1),
+        opts_hover_inv(css = "opacity:0.3;"),
+        opts_hover(css = "stroke-width:3px;"),
         opts_selection(type = "none")
       )
     )

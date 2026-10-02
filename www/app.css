@@ -393,8 +393,27 @@
 }
 .avlopp-layout .avlopp-filter .form-group { margin-bottom: 0; }
 
+/* Vy-väljare (Linjediagram/Heatmap) ovanför "utveckling över tid" - liten och diskret,
+   högerjusterad så den känns som en inställning för diagrammet under, inte ett eget filter. */
+.avlopp-layout .avlopp-tid-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 4px;
+}
+.avlopp-layout .avlopp-tid-toolbar .shiny-options-group {
+  display: flex;
+  gap: 14px;
+  margin-top: 0;
+}
+.avlopp-layout .avlopp-tid-toolbar .radio-inline {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  padding-left: 18px;
+}
+
 /* De två diagrammen staplade till höger om kartan. Höjden sätts per diagram som inline style
-   från servern (se avlopp_bar_hojd()/avlopp_heatmap_hojd()) efter antal kommuner med data,
+   från servern (se avlopp_bar_hojd()/avlopp_tid_hojd()) efter antal kommuner med data,
    så den växer av sig själv i takt med att fler kommuner tillkommer - CSS:en här sköter bara
    marginal och att girafe-widgeten fyller sin tilldelade höjd. */
 .avlopp-layout .avlopp-diagram-cell {
