@@ -459,6 +459,13 @@
   background: transparent !important;
 }
 
+/* Kontrollvärdets referensgraf är medvetet liten och fast i höjd - en sparkline, inte ett
+   jämnbördigt tredje diagram. */
+.avlopp-layout .avlopp-diagram-cell--kontroll {
+  height: 150px;
+  margin-top: -6px;
+}
+
 @media (max-width: 991px) {
   .avlopp-layout .col-sm-4,
   .avlopp-layout .col-sm-8 {

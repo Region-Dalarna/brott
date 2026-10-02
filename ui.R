@@ -264,7 +264,10 @@ shinyUI(tagList(
                                         choices = c("Linjediagram" = "linje", "Heatmap" = "heatmap"),
                                         selected = "linje", inline = TRUE)
                        ),
-                       uiOutput("avlopp_diagram_tid_ui")
+                       uiOutput("avlopp_diagram_tid_ui"),
+                       # Liten referensgraf för kontrollvärdet (Kotinin/Epitestosteron) - visas
+                       # bara i linjevyn, och bara när man inte redan tittar på kontrollvärdet.
+                       uiOutput("avlopp_diagram_kontroll_ui")
                      )
                    )
                )

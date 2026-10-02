@@ -123,6 +123,10 @@ avlopp_kontrollvarde_notis <- function(substans) {
   if (substans %in% names(avlopp_kontrollvarden)) unname(avlopp_kontrollvarden[substans]) else NULL
 }
 
+# Vilket ämne som fungerar som kontrollvärde-referens för respektive kategori - används för att
+# visa en liten referensgraf vid sidan av huvudvyn (se avlopp_kontroll_amne() i server.R).
+avlopp_kontrollamne_for_kategori <- c(Narkotika = "Kotinin", Doping = "Epitestosteron")
+
 # Bygger choices till ämnesväljaren. Narkotika blir en platt, alfabetisk lista; Doping grupperas
 # i optgroups enligt avlopp_doping_grupper. Kontrollvärden (Kotinin, Epitestosteron) märks ut i
 # den synliga etiketten, men det underliggande värdet (det som når input$avlopp_substans och

@@ -2164,6 +2164,29 @@ shinyServer(function(input, output, session) {
         girafeOutput(diagram_id, height = "100%", width = "100%"))
   })
 
+  # Kontrollvärdet (Kotinin/Epitestosteron) för vald kategori - visas som en liten egen
+  # referensgraf, inte som en andra y-axel på huvuddiagrammet (se diskussion i chatten om varför
+  # en delad/dubbel skala undviks: olika ämnens halter ligger på helt olika nivåer).
+  avlopp_kontroll_amne <- reactive({
+    unname(avlopp_kontrollamne_for_kategori[input$avlopp_kategori])
+  })
+
+  avlopp_kontroll_tid_df <- reactive({
+    amne <- avlopp_kontroll_amne()
+    req(avloppsmatningar(), amne)
+    avlopp_over_tid(avloppsmatningar(), amne, avlopp_standardenhet)
+  })
+
+  # Visas bara i linjevyn, och bara när man inte redan tittar på kontrollvärdet självt.
+  output$avlopp_diagram_kontroll_ui <- renderUI({
+    amne <- avlopp_kontroll_amne()
+    if (!identical(input$avlopp_vy, "linje") || is.null(amne) || identical(input$avlopp_substans, amne)) {
+      return(NULL)
+    }
+    div(class = "avlopp-diagram-cell avlopp-diagram-cell--kontroll",
+        girafeOutput("diagram_avlopp_kontroll", height = "100%", width = "100%"))
+  })
+
   # --- Karta: senaste mätningen per kommun ---
   output$karta_avlopp <- renderLeaflet({
     req(avlopp_senaste_df())
@@ -2412,6 +2435,70 @@ shinyServer(function(input, output, session) {
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:0.3;"),
         opts_hover(css = "stroke-width:3px;"),
+        opts_selection(type = "none")
+      )
+    )
+  })
+
+  # --- Liten referensgraf: kontrollvärdets egen utveckling (Kotinin/Epitestosteron) ---
+  # Egen, oberoende y-axel i en liten separat graf i stället för en andra axel på huvud-
+  # diagrammet - annars riskerar olika ämnens helt olika halt-nivåer att se ut att "hänga ihop"
+  # bara för att man valt en viss skalningsfaktor, utan att det finns ett verkligt samband.
+  output$diagram_avlopp_kontroll <- renderGirafe({
+    amne <- avlopp_kontroll_amne()
+    req(avlopp_kontroll_tid_df(), amne)
+
+    fokus <- input$avlopp_fokuskommun
+    alla_kommuner <- sort(unique(avlopp_kontroll_tid_df()$kommun))
+    har_fokus <- isTruthy(fokus) && fokus %in% alla_kommuner
+
+    plot_data <- avlopp_kontroll_tid_df()
+    if (har_fokus) plot_data <- plot_data %>% dplyr::filter(kommun == fokus)
+
+    plot_data <- plot_data %>%
+      dplyr::arrange(kommun, sasongsnyckel) %>%
+      dplyr::group_by(kommun) %>%
+      dplyr::mutate(segment = paste0(kommun, "_", cumsum(is.na(varde)))) %>%
+      dplyr::ungroup() %>%
+      mutate(
+        etikett = paste0(kommun, ", ", period, ": ",
+                         ifelse(is.na(varde), "ingen mätning",
+                                paste0(format(round(varde, 1), big.mark = " ", decimal.mark = ","),
+                                       " mg/1000 inv & dygn")))
+      )
+
+    if (nrow(plot_data) == 0 || all(is.na(plot_data$varde))) {
+      return(girafe(ggobj = ggplot() + theme_void(), bg = "transparent"))
+    }
+
+    linje_farg <- if (har_fokus) "#5b8a94" else "#bcc9ce"
+    rubrik <- if (har_fokus) paste0("Kontrollvärde: ", amne, " – ", fokus) else paste0("Kontrollvärde: ", amne, " (alla kommuner)")
+
+    p <- ggplot(plot_data, aes(x = period, y = varde, group = segment)) +
+      geom_line(color = linje_farg, linewidth = 0.8, na.rm = TRUE) +
+      geom_point_interactive(aes(tooltip = etikett, data_id = paste(kommun, period)),
+                             color = linje_farg, size = 1.4, na.rm = TRUE) +
+      scale_y_continuous(labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
+      labs(x = NULL, y = NULL, title = rubrik,
+           caption = "Referens för mätkvalitet - jämförs inte med andra ämnen.") +
+      theme_minimal(base_size = diagram_caption_storlek) +
+      theme(
+        panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background  = element_rect(fill = "transparent", color = NA),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(size = diagram_axeltext_storlek, face = "bold", color = "#666"),
+        plot.caption = element_text(size = diagram_caption_storlek, color = "#888", hjust = 0, margin = margin(t = 4)),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = diagram_caption_storlek),
+        axis.text.y = element_text(size = diagram_caption_storlek),
+        plot.margin = margin(t = 4, r = 8, b = 2, l = 8)
+      )
+
+    girafe(
+      ggobj = p, width_svg = 9, height_svg = 1.9, bg = "transparent",
+      options = list(
+        opts_sizing(rescale = TRUE, width = 1),
+        opts_hover_inv(css = "opacity:0.4;"),
+        opts_hover(css = "stroke-width:2px;"),
         opts_selection(type = "none")
       )
     )
