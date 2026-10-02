@@ -393,13 +393,45 @@
 }
 .avlopp-layout .avlopp-filter .form-group { margin-bottom: 0; }
 
-/* Vy-väljare (Linjediagram/Heatmap) ovanför "utveckling över tid" - liten och diskret,
-   högerjusterad så den känns som en inställning för diagrammet under, inte ett eget filter. */
+/* Infopanel om hur resultaten ska tolkas - ihopfälld som standard så den inte tar plats från
+   diagrammen, men lätt att hitta för den som vill läsa om fallgropar och förbehåll. */
+.avlopp-layout .avlopp-info {
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #555;
+}
+.avlopp-layout .avlopp-info summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #0f7090;
+  list-style: none;
+}
+.avlopp-layout .avlopp-info summary::-webkit-details-marker { display: none; }
+.avlopp-layout .avlopp-info summary svg { margin-right: 6px; }
+.avlopp-layout .avlopp-info ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+.avlopp-layout .avlopp-info li {
+  margin-bottom: 4px;
+}
+
+/* Verktygsrad ovanför "utveckling över tid": fokuskommun till vänster (ett riktigt filter),
+   vy-väljaren (Linjediagram/Heatmap) litet och diskret till höger, som en inställning för
+   diagrammet under snarare än ett eget filter. */
 .avlopp-layout .avlopp-tid-toolbar {
   display: flex;
-  justify-content: flex-end;
-  margin: -4px 0 4px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: -4px 0 12px;
 }
+.avlopp-layout .avlopp-fokuskommun {
+  flex: 0 1 240px;
+  min-width: 180px;
+}
+.avlopp-layout .avlopp-fokuskommun .form-group { margin-bottom: 0; }
 .avlopp-layout .avlopp-tid-toolbar .shiny-options-group {
   display: flex;
   gap: 14px;

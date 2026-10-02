@@ -88,3 +88,56 @@ avlopp_over_tid <- function(df, substans_vald, enhet_vald) {
     mutate(varde = ifelse(is.nan(varde), NA_real_, varde),
            period = forcats::fct_reorder(period, sasongsnyckel))
 }
+
+# Dopingpreparaten grupperas enligt underlag från Hanna/RISE, för att underlätta tolkningen av
+# ämnen som annars är svåra att skilja åt (se mejlet med gruppindelningen, okt 2026).
+avlopp_doping_grupper <- list(
+  "Grupp 1: Helt syntetiska substanser (saknar annan användning än doping)" = c(
+    "Stanozolol", "3'-Hydroxystanozolol", "Oxandrolon", "Oxymesteron",
+    "Oxymetolon", "Mesterolon", "Trenbolon", "Klordehydrometyltestosteron"
+  ),
+  "Grupp 2: Forskningen inte entydig, kan i vissa fall förekomma naturligt" = c(
+    "19-Norandrosteron", "Boldenon", "Boldion", "4-Dihydroboldenon"
+  ),
+  "Grupp 3: Naturliga testosteronvarianter (sannolikt detekterbara i alla prov)" = c(
+    "Testosteron", "Epitestosteron", "Androstanolon", "Androstenedion"
+  )
+)
+
+# Ämnen som fungerar som kontrollvärden - relativt stabila över tid, så stora avvikelser mellan
+# mätningar kan tyda på ett mätfel snarare än en verklig förändring i befolkningens konsumtion.
+avlopp_kontrollvarden <- c(
+  Kotinin = paste(
+    "Kotinin är en nikotinmetabolit och ett relativt stabilt kontrollvärde.",
+    "Stora skillnader mellan mätningar kan tyda på att något blivit fel i mätningen,",
+    "snarare än en verklig förändring."
+  ),
+  Epitestosteron = paste(
+    "Epitestosteron bildas naturligt i kroppen och är ett bra kontrollvärde.",
+    "Nivån bör vara ungefär densamma över tid."
+  )
+)
+
+# Text som visas som underrubrik i diagrammen när ett kontrollvärde är valt, annars NULL.
+avlopp_kontrollvarde_notis <- function(substans) {
+  if (substans %in% names(avlopp_kontrollvarden)) unname(avlopp_kontrollvarden[substans]) else NULL
+}
+
+# Bygger choices till ämnesväljaren. Narkotika blir en platt, alfabetisk lista; Doping grupperas
+# i optgroups enligt avlopp_doping_grupper. Kontrollvärden (Kotinin, Epitestosteron) märks ut i
+# den synliga etiketten, men det underliggande värdet (det som når input$avlopp_substans och
+# används för att filtrera data) är alltid det rena ämnesnamnet.
+avlopp_amnesval <- function(amnen_i_data, kategori) {
+  etikett <- function(x) {
+    ifelse(x %in% names(avlopp_kontrollvarden), paste0(x, " (kontrollvärde)"), x)
+  }
+
+  if (identical(kategori, "Doping")) {
+    grupper <- purrr::map(avlopp_doping_grupper, ~ intersect(.x, amnen_i_data))
+    grupper <- purrr::keep(grupper, ~ length(.x) > 0)
+    purrr::map(grupper, ~ setNames(.x, etikett(.x)))
+  } else {
+    amnen <- sort(amnen_i_data)
+    setNames(amnen, etikett(amnen))
+  }
+}

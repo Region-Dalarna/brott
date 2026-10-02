@@ -239,11 +239,27 @@ shinyUI(tagList(
                                            choices = NULL)
                            )
                        ),
+                       tags$details(class = "avlopp-info",
+                           tags$summary(icon("info-circle"), "Så ska resultaten tolkas"),
+                           tags$ul(
+                             tags$li("Varje mätpunkt avser ett enskilt mättillfälle under angiven säsong - inte en period eller ett snitt."),
+                             tags$li("Resultaten är ögonblicksbilder. Dra inte för stora slutsatser utan lokal kännedom om förhållandena i kommunen."),
+                             tags$li("Jämförelser mellan kommuner bör göras med försiktighet, eftersom lokala faktorer (t.ex. befolkning, avloppsflöde, nederbörd) påverkar resultatet."),
+                             tags$li("Värden går inte att jämföra mellan olika ämnen. En “dos” skiljer sig i mängd mellan preparat, t.ex. cannabis 125 mg, amfetamin 30 mg och kokain 100 mg (enligt EMCDDA)."),
+                             tags$li("En lucka i diagrammen betyder att ämnet inte gick att detektera eller kvantifiera i just det provet - inte att halten var noll.")
+                           )
+                       ),
                        # Höjden sätts dynamiskt i servern efter antal kommuner med data, så att
                        # diagrammen inte har onödigt tomrum idag men växer av sig själva i takt
                        # med att fler kommuner får mätningar.
                        uiOutput("avlopp_diagram_senaste_ui"),
                        div(class = "avlopp-tid-toolbar",
+                           conditionalPanel(
+                             condition = "input.avlopp_vy == 'linje'",
+                             div(class = "avlopp-fokuskommun",
+                                 selectInput("avlopp_fokuskommun", NULL, choices = NULL, width = "100%")
+                             )
+                           ),
                            radioButtons("avlopp_vy", NULL,
                                         choices = c("Linjediagram" = "linje", "Heatmap" = "heatmap"),
                                         selected = "linje", inline = TRUE)

@@ -2074,27 +2074,29 @@ shinyServer(function(input, output, session) {
     avloppsmatningar(hamta_avloppsmatningar(avlopp_stat_tabell))
   }, once = TRUE)
 
-  # Uppdatera ämnesvalet när datan laddats eller kategori (Narkotika/Doping) ändras
+  # Uppdatera ämnesvalet när datan laddats eller kategori (Narkotika/Doping) ändras.
+  # Doping grupperas i optgroups (se avlopp_amnesval()/avlopp_doping_grupper), Narkotika hålls platt.
   observeEvent(list(avloppsmatningar(), input$avlopp_kategori), {
     req(avloppsmatningar())
 
-    amnen <- avloppsmatningar() %>%
+    amnen_i_data <- avloppsmatningar() %>%
       dplyr::filter(amnesgrupp == input$avlopp_kategori) %>%
       dplyr::pull(substans) %>%
-      unique() %>%
-      sort()
+      unique()
 
-    if (length(amnen) == 0) return()
+    if (length(amnen_i_data) == 0) return()
 
-    valt <- if (isTruthy(input$avlopp_substans) && input$avlopp_substans %in% amnen) {
+    valt <- if (isTruthy(input$avlopp_substans) && input$avlopp_substans %in% amnen_i_data) {
       input$avlopp_substans
-    } else if ("Cannabis (THCA-metabolit)" %in% amnen) {
+    } else if ("Cannabis (THCA-metabolit)" %in% amnen_i_data) {
       "Cannabis (THCA-metabolit)"
     } else {
-      amnen[1]
+      sort(amnen_i_data)[1]
     }
 
-    updateSelectInput(session, "avlopp_substans", choices = amnen, selected = valt)
+    updateSelectInput(session, "avlopp_substans",
+                       choices = avlopp_amnesval(amnen_i_data, input$avlopp_kategori),
+                       selected = valt)
   })
 
   # Senaste mätningen per kommun, för valt ämne och appens standardmått
@@ -2103,10 +2105,26 @@ shinyServer(function(input, output, session) {
     avlopp_senaste_per_kommun(avloppsmatningar(), input$avlopp_substans, avlopp_standardenhet)
   })
 
-  # All historik för valt ämne, en rad per kommun och säsong - underlag för heatmapen
+  # All historik för valt ämne, en rad per kommun och säsong - underlag för heatmap/linjediagram
   avlopp_tid_df <- reactive({
     req(avloppsmatningar(), input$avlopp_substans)
     avlopp_over_tid(avloppsmatningar(), input$avlopp_substans, avlopp_standardenhet)
+  })
+
+  # Uppdatera fokuskommun-listan efter vilka kommuner som faktiskt har data för valt ämne.
+  # Behåller valet om det fortfarande är giltigt, annars återgår den till "Visa alla lika".
+  observeEvent(avlopp_tid_df(), {
+    kommuner <- sort(unique(avlopp_tid_df()$kommun))
+
+    valt <- if (isTruthy(input$avlopp_fokuskommun) && input$avlopp_fokuskommun %in% kommuner) {
+      input$avlopp_fokuskommun
+    } else {
+      ""
+    }
+
+    updateSelectInput(session, "avlopp_fokuskommun",
+                       choices = c("Visa alla lika" = "", kommuner),
+                       selected = valt)
   })
 
   # Diagramhöjd i pixlar, räknad från antal kommuner som faktiskt ska visas - så att
@@ -2239,6 +2257,7 @@ shinyServer(function(input, output, session) {
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = NULL, y = "mg per 1000 inv. & dygn",
            title = paste0(input$avlopp_substans, " – senaste mätningen per kommun"),
+           subtitle = avlopp_kontrollvarde_notis(input$avlopp_substans),
            caption = KALLA_RISE) +
       theme_minimal(base_size = diagram_text_storlek) +
       theme(
@@ -2246,6 +2265,9 @@ shinyServer(function(input, output, session) {
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_textbox_simple(
           size = diagram_rubrik_storlek, face = "bold",
+          margin = margin(b = 8), width = unit(1, "npc")),
+        plot.subtitle = element_textbox_simple(
+          size = diagram_axeltext_storlek, color = "#666",
           margin = margin(b = 8), width = unit(1, "npc")),
         plot.caption = element_text(
           size = diagram_caption_storlek, color = "#666", hjust = 0,
@@ -2288,6 +2310,7 @@ shinyServer(function(input, output, session) {
                          name = "mg/1000 inv\n& dygn") +
       labs(x = NULL, y = NULL,
            title = paste0(input$avlopp_substans, " – utveckling över tid, per säsong"),
+           subtitle = avlopp_kontrollvarde_notis(input$avlopp_substans),
            caption = KALLA_RISE) +
       theme_minimal(base_size = diagram_text_storlek) +
       theme(
@@ -2296,6 +2319,9 @@ shinyServer(function(input, output, session) {
         panel.grid = element_blank(),
         plot.title = element_textbox_simple(
           size = diagram_rubrik_storlek, face = "bold",
+          margin = margin(b = 8), width = unit(1, "npc")),
+        plot.subtitle = element_textbox_simple(
+          size = diagram_axeltext_storlek, color = "#666",
           margin = margin(b = 8), width = unit(1, "npc")),
         plot.caption = element_text(
           size = diagram_caption_storlek, color = "#666", hjust = 0,
@@ -2338,15 +2364,31 @@ shinyServer(function(input, output, session) {
                       labs(title = "Inga mätningar av valt ämne ännu"), bg = "transparent"))
     }
 
+    # Fokuskommun: färglägger en vald kommun och tonar ner övriga till grått, så att "mitt
+    # resultat över tid" går snabbt att hitta - annars full viridis-palett för att jämföra alla.
+    fokus <- input$avlopp_fokuskommun
+    alla_kommuner <- sort(unique(plot_data$kommun))
+    har_fokus <- isTruthy(fokus) && fokus %in% alla_kommuner
+
+    if (har_fokus) {
+      plot_data <- plot_data %>% mutate(kommun = forcats::fct_relevel(kommun, fokus, after = Inf))
+      farger <- setNames(rep("#c9c9c9", length(alla_kommuner)), alla_kommuner)
+      farger[fokus] <- "#0f7090"
+      color_scale <- scale_color_manual(values = farger, breaks = fokus, name = NULL)
+    } else {
+      color_scale <- scale_color_viridis_d(end = 0.85, name = NULL)
+    }
+
     p <- ggplot(plot_data, aes(x = period, y = varde, group = segment, color = kommun)) +
       geom_line(linewidth = 1, na.rm = TRUE) +
       geom_point_interactive(aes(tooltip = etikett, data_id = paste(kommun, period)),
                              size = 2, na.rm = TRUE) +
-      scale_color_viridis_d(end = 0.85, name = NULL) +
+      color_scale +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = NULL, y = "mg per 1000 inv. & dygn",
            title = paste0(input$avlopp_substans, " – utveckling över tid, per säsong"),
+           subtitle = avlopp_kontrollvarde_notis(input$avlopp_substans),
            caption = KALLA_RISE) +
       theme_minimal(base_size = diagram_text_storlek) +
       theme(
@@ -2354,6 +2396,9 @@ shinyServer(function(input, output, session) {
         plot.background  = element_rect(fill = "transparent", color = NA),
         plot.title = element_textbox_simple(
           size = diagram_rubrik_storlek, face = "bold",
+          margin = margin(b = 8), width = unit(1, "npc")),
+        plot.subtitle = element_textbox_simple(
+          size = diagram_axeltext_storlek, color = "#666",
           margin = margin(b = 8), width = unit(1, "npc")),
         plot.caption = element_text(
           size = diagram_caption_storlek, color = "#666", hjust = 0,
