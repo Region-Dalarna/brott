@@ -100,18 +100,20 @@ avlopp_senaste_per_kommun <- function(df, substans_vald, enhet_vald) {
 }
 
 # avlopp_senaste_per_kommun(), aggregerad till en rad per kommun(kod) - för kartan, som har en
-# polygon per kommun och inte kan visa flera platser separat. Kommuner med flera platser får
-# medelvärdet av platsernas senaste mätningar.
+# polygon per kommun och inte kan visa flera platser separat. Kommuner med flera platser
+# färgsätts efter den plats som mättes senast (högst sasongsnyckel); om platserna råkar ha
+# mätningar från samma säsong används istället den högsta av dem. Tooltipen är opåverkad av
+# det här - den byggs separat direkt ur avlopp_senaste_per_kommun() och listar alla platser.
 avlopp_senaste_per_kommun_karta <- function(df_senaste) {
   df_senaste %>%
     group_by(kommunkod, kommun) %>%
+    filter(sasongsnyckel == max(sasongsnyckel)) %>%
     summarise(
-      period  = period[which.max(sasongsnyckel)][1],
-      varde   = mean(varde, na.rm = TRUE),
+      period  = dplyr::first(period),
+      varde   = if (all(is.na(varde))) NA_real_ else max(varde, na.rm = TRUE),
       flaggor = paste(unique(stats::na.omit(unlist(strsplit(flaggor, ", ")))), collapse = ", "),
       .groups = "drop"
-    ) %>%
-    mutate(varde = ifelse(is.nan(varde), NA_real_, varde))
+    )
 }
 
 # All data för ett ämne/enhet, en rad per kommun(/plats) och säsong - underlag för heatmapen

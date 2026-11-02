@@ -12,9 +12,10 @@ kommunnamnet. Stapeldiagram, heatmap, linjediagram och fokuskommun-väljaren anv
 `kommun_etikett` i stället för `kommun` rakt av.
 
 Kartan är undantaget - den har en polygon per kommun (kopplad via `kommunkod`) och kan inte
-färgsätta flera platser separat. `avlopp_senaste_per_kommun_karta()` slår därför ihop platsernas
-senaste mätningar till ett medelvärde per kommun för polygonens färg, men tooltipen listar
-ändå varje plats för sig (med värde, period och ev. flaggor) när kommunen har mer än en.
+färgsätta flera platser separat. `avlopp_senaste_per_kommun_karta()` väljer därför den plats
+som mättes senast (högst `sasongsnyckel`) för polygonens färg; om platserna råkar ha mätningar
+från samma säsong används istället den högsta av dem. Tooltipen är opåverkad av detta - den
+listar ändå varje plats för sig (med värde, period och ev. flaggor) när kommunen har mer än en.
 
 ## Struktur
 
