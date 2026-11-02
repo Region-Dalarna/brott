@@ -2,6 +2,20 @@
 
 Detta repository innehåller en Shinyapplikation (`brott`) för Samhällsanalys, Region Dalarna.
 
+## Avloppsmätningar (RISE) - kommuner med flera mätplatser
+
+`rise.avloppsmatningar` fick en ny kolumn `plats` när en kommun började mäta på två platser
+samtidigt. `forbered_avloppsmatningar()` i `R/data_avlopp.R` räknar ut antalet unika platser
+per kommun (över hela datasetet, inte bara vald period/ämne) och bygger kolumnen
+`kommun_etikett`: `"Kommun, Plats"` för kommuner med fler än en plats, annars bara
+kommunnamnet. Stapeldiagram, heatmap, linjediagram och fokuskommun-väljaren använder
+`kommun_etikett` i stället för `kommun` rakt av.
+
+Kartan är undantaget - den har en polygon per kommun (kopplad via `kommunkod`) och kan inte
+färgsätta flera platser separat. `avlopp_senaste_per_kommun_karta()` slår därför ihop platsernas
+senaste mätningar till ett medelvärde per kommun för polygonens färg, men tooltipen listar
+ändå varje plats för sig (med värde, period och ev. flaggor) när kommunen har mer än en.
+
 ## Struktur
 
 - All appkod ligger i katalogen `app/`

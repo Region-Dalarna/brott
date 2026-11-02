@@ -2099,10 +2099,17 @@ shinyServer(function(input, output, session) {
                        selected = valt)
   })
 
-  # Senaste mätningen per kommun, för valt ämne och appens standardmått
+  # Senaste mätningen per kommun (och plats, för kommuner med flera), för valt ämne och
+  # appens standardmått.
   avlopp_senaste_df <- reactive({
     req(avloppsmatningar(), input$avlopp_substans)
     avlopp_senaste_per_kommun(avloppsmatningar(), input$avlopp_substans, avlopp_standardenhet)
+  })
+
+  # Samma data aggregerad till en rad per kommun - bara för kartan, som har en polygon per
+  # kommun och inte kan färgsätta flera platser separat.
+  avlopp_senaste_karta_df <- reactive({
+    avlopp_senaste_per_kommun_karta(avlopp_senaste_df())
   })
 
   # All historik för valt ämne, en rad per kommun och säsong - underlag för heatmap/linjediagram
@@ -2111,10 +2118,11 @@ shinyServer(function(input, output, session) {
     avlopp_over_tid(avloppsmatningar(), input$avlopp_substans, avlopp_standardenhet)
   })
 
-  # Uppdatera fokuskommun-listan efter vilka kommuner som faktiskt har data för valt ämne.
-  # Behåller valet om det fortfarande är giltigt, annars återgår den till "Visa alla lika".
+  # Uppdatera fokuskommun-listan efter vilka kommuner (ev. + plats) som faktiskt har data för
+  # valt ämne. Behåller valet om det fortfarande är giltigt, annars återgår den till
+  # "Jämför alla kommuner" (tomt värde = inget fokus, avmarkerar ett tidigare val).
   observeEvent(avlopp_tid_df(), {
-    kommuner <- sort(unique(avlopp_tid_df()$kommun))
+    kommuner <- sort(unique(avlopp_tid_df()$kommun_etikett))
 
     valt <- if (isTruthy(input$avlopp_fokuskommun) && input$avlopp_fokuskommun %in% kommuner) {
       input$avlopp_fokuskommun
@@ -2123,7 +2131,7 @@ shinyServer(function(input, output, session) {
     }
 
     updateSelectInput(session, "avlopp_fokuskommun",
-                       choices = c("Visa alla lika" = "", kommuner),
+                       choices = c("Jämför alla kommuner" = "", kommuner),
                        selected = valt)
   })
 
@@ -2143,7 +2151,7 @@ shinyServer(function(input, output, session) {
   # Samma höjdlogik för "utveckling över tid", oavsett om den visas som linjediagram eller
   # heatmap - linjediagrammet har inga rader men ska ändå få mer rum när fler kommuner har linjer.
   avlopp_tid_hojd <- reactive({
-    n <- avlopp_tid_df() %>% dplyr::pull(kommun) %>% unique() %>% length()
+    n <- avlopp_tid_df() %>% dplyr::pull(kommun_etikett) %>% unique() %>% length()
     avlopp_diagramhojd(n, pixlar_per_rad = 42, fast_omkostnad = 110)
   })
 
@@ -2188,12 +2196,18 @@ shinyServer(function(input, output, session) {
   })
 
   # --- Karta: senaste mätningen per kommun ---
+  # Polygonens fyllningsfärg baseras på medelvärdet av kommunens platser
+  # (avlopp_senaste_karta_df() - en polygon kan inte färgsättas efter flera värden), men
+  # tooltipen listar varje plats för sig när kommunen har mer än en, så informationen inte
+  # går förlorad bara för att kartan måste slå ihop den för färgsättningen.
   output$karta_avlopp <- renderLeaflet({
-    req(avlopp_senaste_df())
+    req(avlopp_senaste_karta_df())
+
+    df_senaste <- avlopp_senaste_df()
 
     df_map <- kommun_sf %>%
       dplyr::left_join(
-        avlopp_senaste_df() %>% dplyr::select(kommunkod, period, varde, flaggor),
+        avlopp_senaste_karta_df() %>% dplyr::select(kommunkod, period, varde, flaggor),
         by = "kommunkod"
       )
 
@@ -2216,10 +2230,30 @@ shinyServer(function(input, output, session) {
     pal <- colorNumeric(palette = "YlOrRd", domain = df_map$varde, na.color = "#e8e8e8")
 
     etiketter <- purrr::pmap(
-      list(df_map$kommunnamn, df_map$varde, df_map$period, df_map$flaggor),
-      function(namn, varde, period, flaggor) {
+      list(df_map$kommunkod, df_map$kommunnamn, df_map$varde, df_map$period, df_map$flaggor),
+      function(kommunkod, namn, varde, period, flaggor) {
         if (is.na(varde)) {
-          htmltools::HTML(paste0(namn, "<br><i>Ingen mätning av ", tolower(input$avlopp_substans), "</i>"))
+          return(htmltools::HTML(paste0(namn, "<br><i>Ingen mätning av ", tolower(input$avlopp_substans), "</i>")))
+        }
+
+        platser <- df_senaste[df_senaste$kommunkod == kommunkod, ]
+
+        if (nrow(platser) > 1) {
+          rader <- purrr::pmap_chr(
+            list(platser$plats, platser$varde, platser$period, platser$flaggor),
+            function(plats, varde, period, flaggor) {
+              if (is.na(varde)) {
+                paste0(plats, ": ingen mätning")
+              } else {
+                paste0(
+                  "<b>", plats, ":</b> ",
+                  format(round(varde, 1), big.mark = " ", decimal.mark = ","), " mg/1000 inv & dygn (", period, ")",
+                  if (nzchar(flaggor)) paste0(" <span style='color:#ae2d3a'>", flaggor, "</span>") else ""
+                )
+              }
+            }
+          )
+          htmltools::HTML(paste0(namn, "<br>", paste(rader, collapse = "<br>")))
         } else {
           htmltools::HTML(paste0(
             namn, "<br>",
@@ -2262,8 +2296,8 @@ shinyServer(function(input, output, session) {
     plot_data <- avlopp_senaste_df() %>%
       dplyr::filter(!is.na(varde)) %>%
       mutate(
-        kommun  = forcats::fct_reorder(kommun, varde),
-        etikett = paste0(kommun, ": ", format(round(varde, 1), big.mark = " ", decimal.mark = ","),
+        kommun_etikett = forcats::fct_reorder(kommun_etikett, varde),
+        etikett = paste0(kommun_etikett, ": ", format(round(varde, 1), big.mark = " ", decimal.mark = ","),
                          " mg/1000 inv & dygn\n", period,
                          ifelse(nzchar(flaggor), paste0("\n", flaggor), ""))
       )
@@ -2273,8 +2307,8 @@ shinyServer(function(input, output, session) {
                       labs(title = "Inga mätningar av valt ämne ännu"), bg = "transparent"))
     }
 
-    p <- ggplot(plot_data, aes(x = kommun, y = varde)) +
-      geom_col_interactive(aes(tooltip = etikett, data_id = kommun), fill = "#0f7090") +
+    p <- ggplot(plot_data, aes(x = kommun_etikett, y = varde)) +
+      geom_col_interactive(aes(tooltip = etikett, data_id = kommun_etikett), fill = "#0f7090") +
       coord_flip() +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
@@ -2315,7 +2349,7 @@ shinyServer(function(input, output, session) {
 
     plot_data <- avlopp_tid_df() %>%
       mutate(
-        etikett = paste0(kommun, ", ", period, ": ",
+        etikett = paste0(kommun_etikett, ", ", period, ": ",
                          ifelse(is.na(varde), "ingen mätning",
                                 paste0(format(round(varde, 1), big.mark = " ", decimal.mark = ","),
                                        " mg/1000 inv & dygn")),
@@ -2326,8 +2360,8 @@ shinyServer(function(input, output, session) {
       return(girafe(ggobj = ggplot() + theme_void(), bg = "transparent"))
     }
 
-    p <- ggplot(plot_data, aes(x = period, y = kommun, fill = varde)) +
-      geom_tile_interactive(aes(tooltip = etikett, data_id = paste(kommun, period)),
+    p <- ggplot(plot_data, aes(x = period, y = kommun_etikett, fill = varde)) +
+      geom_tile_interactive(aes(tooltip = etikett, data_id = paste(kommun_etikett, period)),
                             color = "#d9d9d9", linewidth = 0.5) +
       scale_fill_gradient(low = "#eaf4f8", high = "#0f7090", na.value = "#e8e8e8",
                          name = "mg/1000 inv\n& dygn") +
@@ -2368,14 +2402,14 @@ shinyServer(function(input, output, session) {
     req(avlopp_tid_df())
 
     plot_data <- avlopp_tid_df() %>%
-      dplyr::arrange(kommun, sasongsnyckel) %>%
-      dplyr::group_by(kommun) %>%
+      dplyr::arrange(kommun_etikett, sasongsnyckel) %>%
+      dplyr::group_by(kommun_etikett) %>%
       # Bryter linjen i separata segment vid luckor (ej detekterat/ej provtaget), så att den
       # aldrig av misstag bygger en bro över en säsong där kommunen saknar mätbart värde.
-      dplyr::mutate(segment = paste0(kommun, "_", cumsum(is.na(varde)))) %>%
+      dplyr::mutate(segment = paste0(kommun_etikett, "_", cumsum(is.na(varde)))) %>%
       dplyr::ungroup() %>%
       mutate(
-        etikett = paste0(kommun, ", ", period, ": ",
+        etikett = paste0(kommun_etikett, ", ", period, ": ",
                          ifelse(is.na(varde), "ingen mätning",
                                 paste0(format(round(varde, 1), big.mark = " ", decimal.mark = ","),
                                        " mg/1000 inv & dygn")),
@@ -2387,14 +2421,15 @@ shinyServer(function(input, output, session) {
                       labs(title = "Inga mätningar av valt ämne ännu"), bg = "transparent"))
     }
 
-    # Fokuskommun: färglägger en vald kommun och tonar ner övriga till grått, så att "mitt
-    # resultat över tid" går snabbt att hitta - annars full viridis-palett för att jämföra alla.
+    # Fokuskommun: färglägger en vald kommun(/plats) och tonar ner övriga till grått, så att
+    # "mitt resultat över tid" går snabbt att hitta - annars full viridis-palett för att jämföra
+    # alla. Tomt värde ("Jämför alla kommuner") ger alltid viridis-läget.
     fokus <- input$avlopp_fokuskommun
-    alla_kommuner <- sort(unique(plot_data$kommun))
+    alla_kommuner <- sort(unique(plot_data$kommun_etikett))
     har_fokus <- isTruthy(fokus) && fokus %in% alla_kommuner
 
     if (har_fokus) {
-      plot_data <- plot_data %>% mutate(kommun = forcats::fct_relevel(kommun, fokus, after = Inf))
+      plot_data <- plot_data %>% mutate(kommun_etikett = forcats::fct_relevel(kommun_etikett, fokus, after = Inf))
       farger <- setNames(rep("#c9c9c9", length(alla_kommuner)), alla_kommuner)
       farger[fokus] <- "#0f7090"
       color_scale <- scale_color_manual(values = farger, breaks = fokus, name = NULL)
@@ -2402,9 +2437,9 @@ shinyServer(function(input, output, session) {
       color_scale <- scale_color_viridis_d(end = 0.85, name = NULL)
     }
 
-    p <- ggplot(plot_data, aes(x = period, y = varde, group = segment, color = kommun)) +
+    p <- ggplot(plot_data, aes(x = period, y = varde, group = segment, color = kommun_etikett)) +
       geom_line(linewidth = 1, na.rm = TRUE) +
-      geom_point_interactive(aes(tooltip = etikett, data_id = paste(kommun, period)),
+      geom_point_interactive(aes(tooltip = etikett, data_id = paste(kommun_etikett, period)),
                              size = 2, na.rm = TRUE) +
       color_scale +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
@@ -2449,19 +2484,19 @@ shinyServer(function(input, output, session) {
     req(avlopp_kontroll_tid_df(), amne)
 
     fokus <- input$avlopp_fokuskommun
-    alla_kommuner <- sort(unique(avlopp_kontroll_tid_df()$kommun))
+    alla_kommuner <- sort(unique(avlopp_kontroll_tid_df()$kommun_etikett))
     har_fokus <- isTruthy(fokus) && fokus %in% alla_kommuner
 
     plot_data <- avlopp_kontroll_tid_df()
-    if (har_fokus) plot_data <- plot_data %>% dplyr::filter(kommun == fokus)
+    if (har_fokus) plot_data <- plot_data %>% dplyr::filter(kommun_etikett == fokus)
 
     plot_data <- plot_data %>%
-      dplyr::arrange(kommun, sasongsnyckel) %>%
-      dplyr::group_by(kommun) %>%
-      dplyr::mutate(segment = paste0(kommun, "_", cumsum(is.na(varde)))) %>%
+      dplyr::arrange(kommun_etikett, sasongsnyckel) %>%
+      dplyr::group_by(kommun_etikett) %>%
+      dplyr::mutate(segment = paste0(kommun_etikett, "_", cumsum(is.na(varde)))) %>%
       dplyr::ungroup() %>%
       mutate(
-        etikett = paste0(kommun, ", ", period, ": ",
+        etikett = paste0(kommun_etikett, ", ", period, ": ",
                          ifelse(is.na(varde), "ingen mätning",
                                 paste0(format(round(varde, 1), big.mark = " ", decimal.mark = ","),
                                        " mg/1000 inv & dygn")))
@@ -2476,7 +2511,7 @@ shinyServer(function(input, output, session) {
 
     p <- ggplot(plot_data, aes(x = period, y = varde, group = segment)) +
       geom_line(color = linje_farg, linewidth = 0.8, na.rm = TRUE) +
-      geom_point_interactive(aes(tooltip = etikett, data_id = paste(kommun, period)),
+      geom_point_interactive(aes(tooltip = etikett, data_id = paste(kommun_etikett, period)),
                              color = linje_farg, size = 1.4, na.rm = TRUE) +
       scale_y_continuous(labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = NULL, y = NULL, title = rubrik,

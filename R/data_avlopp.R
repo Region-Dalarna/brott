@@ -1,11 +1,14 @@
 # ---- Avloppsmätningar (RISE): narkotika och doping i avloppsvatten ----
 #
 # Tabellen rise.avloppsmatningar i sekretessdatabasen ligger i långt format med en rad per
-# kommun, provtillfälle, ämne och måttenhet:
+# kommun (ev. plats inom kommunen), provtillfälle, ämne och måttenhet:
 #
 #   kommunkod      chr   4 siffror (SCB:s kommunkod)
 #   kommun         chr   kommunnamn
-#   rapportnummer  chr   id för labbrapporten raden kommer från (en rapport per kommun/
+#   plats          chr   mätplats inom kommunen, NA för kommuner som bara mäter på en plats.
+#                        Tillkom när en kommun började mäta på två platser samtidigt - de
+#                        flesta kommuner har bara en plats (eller NA).
+#   rapportnummer  chr   id för labbrapporten raden kommer från (en rapport per kommun/plats/
 #                        provtillfälle, en för narkotika och en för doping)
 #   provdatum      date  faktiskt provtagningsdatum
 #   provsasong     chr   "vinter", "vår", "sommar" eller "höst" - satt av RISE, inte av oss
@@ -45,6 +48,16 @@ forbered_avloppsmatningar <- function(df) {
     group_by(substans) %>%
     summarise(amnesgrupp = if (any(ar_dos_matt)) "Narkotika" else "Doping", .groups = "drop")
 
+  # Antal unika mätplatser per kommun, baserat på HELA datasetet (inte bara vald
+  # period/ämne) - en kommun ska inte byta mellan att visas med och utan plats
+  # beroende på vilket ämne som råkar vara valt. NA-plats räknas inte som en egen
+  # plats, så kommuner som bara mäter på en plats (eller saknar platsuppgift helt)
+  # räknas som en plats och visas utan platsnamn.
+  antal_platser_per_kommun <- df %>%
+    dplyr::filter(!is.na(plats)) %>%
+    dplyr::distinct(kommunkod, plats) %>%
+    dplyr::count(kommunkod, name = "n_platser")
+
   df %>%
     mutate(
       kommunkod = as.character(kommunkod),
@@ -54,16 +67,27 @@ forbered_avloppsmatningar <- function(df) {
       sasongsnyckel = ar * 10L + sasong_ordning,
       period = paste0(str_to_upper(str_sub(provsasong, 1, 1)), str_sub(provsasong, 2), " ", ar)
     ) %>%
-    left_join(amnesgrupp_df, by = "substans")
+    left_join(amnesgrupp_df, by = "substans") %>%
+    left_join(antal_platser_per_kommun, by = "kommunkod") %>%
+    mutate(
+      n_platser = tidyr::replace_na(n_platser, 0L),
+      # Visningsetikett som används genomgående i appen i stället för "kommun" -
+      # "Kommun, Plats" för kommuner med fler än en plats, annars bara kommunnamnet.
+      # Rader utan platsuppgift (plats = NA) faller tillbaka till kommunnamnet även
+      # om kommunen i övrigt har flera platser, eftersom vi då inte vet vilken.
+      kommun_etikett = ifelse(n_platser > 1 & !is.na(plats), paste0(kommun, ", ", plats), kommun)
+    )
 }
 
-# Senaste mätningen per kommun för ett valt ämne/enhet - oberoende kommun för kommun, eftersom
-# kommunerna inte nödvändigtvis provtar samma säsonger. Om flera mätningar råkar finnas för
-# samma kommun och säsong tas medelvärdet.
+# Senaste mätningen per kommun (och plats, för de kommuner som mäter på flera) för ett valt
+# ämne/enhet - oberoende kommun/plats för kommun/plats, eftersom de inte nödvändigtvis provtar
+# samma säsonger. Om flera mätningar råkar finnas för samma kommun/plats och säsong tas
+# medelvärdet. Används av stapeldiagram/heatmap/linjediagram (via kommun_etikett) - för kartan,
+# som bara har en polygon per kommun, se avlopp_senaste_per_kommun_karta().
 avlopp_senaste_per_kommun <- function(df, substans_vald, enhet_vald) {
   df %>%
     filter(substans == substans_vald, enhet == enhet_vald) %>%
-    group_by(kommunkod, kommun) %>%
+    group_by(kommunkod, kommun, kommun_etikett, plats) %>%
     filter(sasongsnyckel == max(sasongsnyckel)) %>%
     summarise(
       period         = dplyr::first(period),
@@ -75,11 +99,27 @@ avlopp_senaste_per_kommun <- function(df, substans_vald, enhet_vald) {
     mutate(varde = ifelse(is.nan(varde), NA_real_, varde))
 }
 
-# All data för ett ämne/enhet, en rad per kommun och säsong - underlag för heatmapen över tid.
+# avlopp_senaste_per_kommun(), aggregerad till en rad per kommun(kod) - för kartan, som har en
+# polygon per kommun och inte kan visa flera platser separat. Kommuner med flera platser får
+# medelvärdet av platsernas senaste mätningar.
+avlopp_senaste_per_kommun_karta <- function(df_senaste) {
+  df_senaste %>%
+    group_by(kommunkod, kommun) %>%
+    summarise(
+      period  = period[which.max(sasongsnyckel)][1],
+      varde   = mean(varde, na.rm = TRUE),
+      flaggor = paste(unique(stats::na.omit(unlist(strsplit(flaggor, ", ")))), collapse = ", "),
+      .groups = "drop"
+    ) %>%
+    mutate(varde = ifelse(is.nan(varde), NA_real_, varde))
+}
+
+# All data för ett ämne/enhet, en rad per kommun(/plats) och säsong - underlag för heatmapen
+# och linjediagrammet över tid.
 avlopp_over_tid <- function(df, substans_vald, enhet_vald) {
   df %>%
     filter(substans == substans_vald, enhet == enhet_vald) %>%
-    group_by(kommunkod, kommun, period, sasongsnyckel) %>%
+    group_by(kommunkod, kommun, kommun_etikett, plats, period, sasongsnyckel) %>%
     summarise(
       varde   = mean(varde, na.rm = TRUE),
       flaggor = paste(unique(stats::na.omit(flagga)), collapse = ", "),
