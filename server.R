@@ -215,8 +215,18 @@ shinyServer(function(input, output, session) {
   showNotification(
     HTML("<b>Tips!</b> Kartan och de två vänstra diagrammen är klickbara –
           borra ner i statistiken genom att klicka."),
+    id = "tips_klickbar",
     duration = 12,
     type = "message")
+
+  # Laddningsmeddelandet och tipset gäller bara Polisstatistik-fliken - ta bort dem
+  # om användaren hinner byta flik innan de försvunnit av sig själva.
+  observeEvent(input$flikval, {
+    if (input$flikval != "Polisstatistik") {
+      removeNotification("loading_msg")
+      removeNotification("tips_klickbar")
+    }
+  }, ignoreInit = TRUE)
 
   kartniva <- reactiveVal("kommun")                             # kartnivå i kartan kommun och deso, ska vi ha en till där vi tittar på enskilda deso?
   vald_kommun <- reactiveVal("Alla")                            # vald kommun i kartan
