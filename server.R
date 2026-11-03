@@ -2120,18 +2120,18 @@ shinyServer(function(input, output, session) {
 
   # Uppdatera fokuskommun-listan efter vilka kommuner (ev. + plats) som faktiskt har data för
   # valt ämne. Behåller valet om det fortfarande är giltigt, annars återgår den till
-  # "Jämför alla kommuner" (tomt värde = inget fokus, avmarkerar ett tidigare val).
+  # "Jämför alla kommuner" (AVLOPP_FOKUS_ALLA = inget fokus, avmarkerar ett tidigare val).
   observeEvent(avlopp_tid_df(), {
     kommuner <- sort(unique(avlopp_tid_df()$kommun_etikett))
 
     valt <- if (isTruthy(input$avlopp_fokuskommun) && input$avlopp_fokuskommun %in% kommuner) {
       input$avlopp_fokuskommun
     } else {
-      ""
+      AVLOPP_FOKUS_ALLA
     }
 
     updateSelectInput(session, "avlopp_fokuskommun",
-                       choices = c("Jämför alla kommuner" = "", kommuner),
+                       choices = c("Jämför alla kommuner" = AVLOPP_FOKUS_ALLA, kommuner),
                        selected = valt)
   })
 
@@ -2423,7 +2423,8 @@ shinyServer(function(input, output, session) {
 
     # Fokuskommun: färglägger en vald kommun(/plats) och tonar ner övriga till grått, så att
     # "mitt resultat över tid" går snabbt att hitta - annars full viridis-palett för att jämföra
-    # alla. Tomt värde ("Jämför alla kommuner") ger alltid viridis-läget.
+    # alla. AVLOPP_FOKUS_ALLA ("Jämför alla kommuner") finns aldrig i alla_kommuner, så
+    # fokus %in% alla_kommuner ger alltid viridis-läget för det valet utan särskild hantering.
     fokus <- input$avlopp_fokuskommun
     alla_kommuner <- sort(unique(plot_data$kommun_etikett))
     har_fokus <- isTruthy(fokus) && fokus %in% alla_kommuner

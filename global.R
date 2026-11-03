@@ -46,5 +46,11 @@ bef_df <- tbl(shiny_uppkoppling_las("oppna_data"), dbplyr::in_schema("brottsfore
 avlopp_stat_tabell <- list(databas = "sekretess", anvandare = "shiny_las_sekretess",
                            schema = "rise", tabell = "avloppsmatningar")
 
+# Värdet för "Jämför alla kommuner" (inget fokus) i fokuskommun-väljaren. MÅSTE vara en icke-tom
+# sträng - selectize.js tolkar ett val med tomt värde ("") som en platshållartext istället för
+# ett riktigt, klickbart listval, så det alternativet går aldrig att välja i efterhand om det
+# försöker använda "". Strängen är bara till för att aldrig krocka med ett riktigt kommun_etikett.
+AVLOPP_FOKUS_ALLA <- "__alla_kommuner__"
+
 # färgvektor
 rus_tre_fokus <- c("#93cec1", "#178571", "#000000")

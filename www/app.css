@@ -444,9 +444,9 @@
   min-width: 210px;
 }
 /* selectize scrollar ned till den redan valda kommunen när listan öppnas, vilket annars
-   gömmer "Jämför alla kommuner" (tomt värde = inget fokus) högst upp i listan. Nålar fast
-   den raden i toppen av den rullbara dropdown-ytan istället, så den alltid syns. */
-.avlopp-layout .avlopp-fokuskommun .selectize-dropdown-content .option[data-value=""] {
+   gömmer "Jämför alla kommuner" (AVLOPP_FOKUS_ALLA, se global.R) högst upp i listan. Nålar
+   fast den raden i toppen av den rullbara dropdown-ytan istället, så den alltid syns. */
+.avlopp-layout .avlopp-fokuskommun .selectize-dropdown-content .option[data-value="__alla_kommuner__"] {
   position: sticky;
   top: 0;
   z-index: 1;
