@@ -437,23 +437,22 @@
   color: #666;
   margin-bottom: 2px;
 }
-.avlopp-layout .avlopp-fokuskommun-rad {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.avlopp-layout .avlopp-fokuskommun-rad .form-group { margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
+.avlopp-layout .avlopp-fokuskommun .form-group { margin-bottom: 0; }
 /* "Jämför alla kommuner" ska få plats utan att klippas av, både i fältet och i dropdown-panelen. */
-.avlopp-layout .avlopp-fokuskommun-rad .selectize-control,
-.avlopp-layout .avlopp-fokuskommun-rad .selectize-dropdown {
+.avlopp-layout .avlopp-fokuskommun .selectize-control,
+.avlopp-layout .avlopp-fokuskommun .selectize-dropdown {
   min-width: 210px;
 }
-.avlopp-layout .avlopp-fokuskommun-rensa {
-  flex: 0 0 auto;
-  color: #888;
-  padding: 4px 2px;
+/* selectize scrollar ned till den redan valda kommunen när listan öppnas, vilket annars
+   gömmer "Jämför alla kommuner" (tomt värde = inget fokus) högst upp i listan. Nålar fast
+   den raden i toppen av den rullbara dropdown-ytan istället, så den alltid syns. */
+.avlopp-layout .avlopp-fokuskommun .selectize-dropdown-content .option[data-value=""] {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
 }
-.avlopp-layout .avlopp-fokuskommun-rensa:hover { color: #ae2d3a; }
 .avlopp-layout .avlopp-tid-toolbar .shiny-options-group {
   display: flex;
   gap: 14px;
