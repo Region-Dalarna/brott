@@ -2189,6 +2189,13 @@ shinyServer(function(input, output, session) {
     avlopp_diagramhojd(n, pixlar_per_rad = 42, fast_omkostnad = 110)
   })
 
+  # Referensbredd (ggplots interna "tum") för avloppsdiagrammens SVG. Avloppsdiagrammen fyller
+  # hela höger kolumnen i ett stycke, betydligt bredare än t.ex. Polisstatistik/BRÅ-flikarnas
+  # diagram som delar upp samma typ av kolumn i flera mindre rutor - med samma width_svg som där
+  # (9) blev text och linjer oproportionerligt stora. Ett högre värde ger mindre text/linjer
+  # relativt den faktiska pixelbredden, se avlopp_height_svg() nedan.
+  AVLOPP_SVG_BREDD <- 13
+
   # ggiraph/girafe skalar bara SVG:n efter containerns BREDD (opts_sizing(rescale=TRUE, width=1))
   # och behåller sedan alltid förhållandet width_svg:height_svg - en fast height_svg ger alltså en
   # renderad höjd som bara råkar matcha den css-satta div-höjden vid en viss fönsterbredd. Vid en
@@ -2197,7 +2204,7 @@ shinyServer(function(input, output, session) {
   # output) och räkna om height_svg så att width_svg/height_svg-förhållandet ger exakt
   # onskad_hojd_px vid just den bredden, blir diagrammet alltid lika högt som sin div - oavsett
   # fönsterstorlek.
-  avlopp_height_svg <- function(output_id, onskad_hojd_px, width_svg = 9, fallback = 4.2) {
+  avlopp_height_svg <- function(output_id, onskad_hojd_px, width_svg = AVLOPP_SVG_BREDD, fallback = width_svg * 0.467) {
     bredd_px <- session$clientData[[paste0("output_", output_id, "_width")]]
     if (isTruthy(bredd_px) && bredd_px > 0) {
       width_svg * onskad_hojd_px / bredd_px
@@ -2371,6 +2378,20 @@ shinyServer(function(input, output, session) {
       paste0(input$avlopp_substans, " – ", input$avlopp_tidpunkt)
     }
 
+    # Flaggor (t.ex. "under rapporteringsgränsen") visas som en egen rad i bildtexten för de
+    # kommuner som har en, i klartext - så att man ser dem utan att behöva hovra över stapeln.
+    flagg_rader <- plot_data %>%
+      dplyr::filter(nzchar(flaggor)) %>%
+      dplyr::arrange(kommun_etikett) %>%
+      dplyr::mutate(rad = paste0(kommun_etikett, " (",
+                                 purrr::map_chr(strsplit(flaggor, ", "), avlopp_flagga_text), ")")) %>%
+      dplyr::pull(rad)
+    bildtext <- if (length(flagg_rader) > 0) {
+      paste0(KALLA_RISE, "\nFlaggor: ", paste(flagg_rader, collapse = "; "))
+    } else {
+      KALLA_RISE
+    }
+
     p <- ggplot(plot_data, aes(x = kommun_etikett, y = varde, fill = period)) +
       geom_col_interactive(aes(tooltip = etikett, data_id = kommun_etikett)) +
       coord_flip() +
@@ -2380,7 +2401,7 @@ shinyServer(function(input, output, session) {
       labs(x = NULL, y = "mg per 1000 inv. & dygn",
            title = rubrik,
            subtitle = avlopp_kontrollvarde_notis(input$avlopp_substans),
-           caption = KALLA_RISE) +
+           caption = bildtext) +
       theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
@@ -2401,7 +2422,7 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = avlopp_height_svg("diagram_avlopp_senaste", avlopp_bar_hojd()),
+      ggobj = p, width_svg = AVLOPP_SVG_BREDD, height_svg = avlopp_height_svg("diagram_avlopp_senaste", avlopp_bar_hojd()),
       bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
@@ -2456,7 +2477,7 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = avlopp_height_svg("diagram_avlopp_heatmap", avlopp_tid_hojd()),
+      ggobj = p, width_svg = AVLOPP_SVG_BREDD, height_svg = avlopp_height_svg("diagram_avlopp_heatmap", avlopp_tid_hojd()),
       bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
@@ -2545,7 +2566,7 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = avlopp_height_svg("diagram_avlopp_tid_linje", avlopp_tid_hojd()),
+      ggobj = p, width_svg = AVLOPP_SVG_BREDD, height_svg = avlopp_height_svg("diagram_avlopp_tid_linje", avlopp_tid_hojd()),
       bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
@@ -2610,8 +2631,9 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      # 150px matchar den fasta höjden på .avlopp-diagram-cell--kontroll i app.css.
-      ggobj = p, width_svg = 9, height_svg = avlopp_height_svg("diagram_avlopp_kontroll", 150, fallback = 1.9),
+      # 170px matchar den fasta höjden på .avlopp-diagram-cell--kontroll i app.css.
+      ggobj = p, width_svg = AVLOPP_SVG_BREDD,
+      height_svg = avlopp_height_svg("diagram_avlopp_kontroll", 170, fallback = 2.74),
       bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),

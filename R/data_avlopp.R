@@ -150,6 +150,26 @@ avlopp_over_tid <- function(df, substans_vald, enhet_vald) {
            period = forcats::fct_reorder(period, sasongsnyckel))
 }
 
+# Läsbara etiketter för flagga-koderna i databasen (t.ex. "ej_detekterad", "under_LLOQ",
+# "konversionsfaktor_saknas") - används för att visa flaggor i klartext i stapeldiagrammets
+# bildtext, utan att man behöver hovra över stapeln för att se dem (tooltipen visar fortfarande
+# de rå koderna/flaggorna som vanligt). Koder som saknas i listan visas med sin rå text i stället
+# för att tappas bort, ifall nya koder tillkommer i databasen.
+avlopp_flagga_etikett <- c(
+  ej_detekterad            = "ej detekterat",
+  under_LLOQ                = "under rapporteringsgränsen",
+  konversionsfaktor_saknas  = "konversionsfaktor saknas"
+)
+
+# Gör om en vektor av (ev. flera) rå flagga-koder för EN mätning till en läsbar, kommaseparerad
+# sträng, t.ex. c("ej_detekterad", "under_LLOQ") -> "ej detekterat, under rapporteringsgränsen".
+avlopp_flagga_text <- function(koder) {
+  koder <- koder[nzchar(koder)]
+  if (length(koder) == 0) return("")
+  etiketter <- ifelse(koder %in% names(avlopp_flagga_etikett), avlopp_flagga_etikett[koder], koder)
+  paste(etiketter, collapse = ", ")
+}
+
 # Dopingpreparaten grupperas enligt underlag från Hanna/RISE, för att underlätta tolkningen av
 # ämnen som annars är svåra att skilja åt (se mejlet med gruppindelningen, okt 2026).
 avlopp_doping_grupper <- list(
