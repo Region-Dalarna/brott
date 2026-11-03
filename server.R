@@ -2135,6 +2135,11 @@ shinyServer(function(input, output, session) {
                        selected = valt)
   })
 
+  # Snabbväg tillbaka till "Jämför alla kommuner" - se kommentar vid knappen i ui.R.
+  observeEvent(input$avlopp_fokuskommun_rensa, {
+    updateSelectInput(session, "avlopp_fokuskommun", selected = "")
+  })
+
   # Diagramhöjd i pixlar, räknad från antal kommuner som faktiskt ska visas - så att
   # diagrammen inte har onödigt tomrum idag (bara fyra kommuner), men växer av sig själva
   # i takt med att fler kommuner får mätningar, upp till ett tak som matchar kartans höjd.

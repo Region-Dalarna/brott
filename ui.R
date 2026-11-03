@@ -257,7 +257,18 @@ shinyUI(tagList(
                            conditionalPanel(
                              condition = "input.avlopp_vy == 'linje'",
                              div(class = "avlopp-fokuskommun",
-                                 selectInput("avlopp_fokuskommun", NULL, choices = NULL, width = "100%")
+                                 tags$label("Fokusera på kommun:", `for` = "avlopp_fokuskommun",
+                                            class = "avlopp-fokuskommun-label"),
+                                 div(class = "avlopp-fokuskommun-rad",
+                                     selectInput("avlopp_fokuskommun", NULL, choices = NULL, width = "100%"),
+                                     # Snabbväg tillbaka till "Jämför alla kommuner" - annars måste
+                                     # man scrolla upp till toppen av listrutan för att hitta valet
+                                     # igen när en kommun redan är vald.
+                                     actionLink("avlopp_fokuskommun_rensa", label = NULL,
+                                                icon = icon("times"),
+                                                class = "avlopp-fokuskommun-rensa",
+                                                title = "Visa alla kommuner igen")
+                                 )
                              )
                            ),
                            radioButtons("avlopp_vy", NULL,

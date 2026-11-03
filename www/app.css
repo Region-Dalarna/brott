@@ -428,10 +428,32 @@
   margin: -4px 0 12px;
 }
 .avlopp-layout .avlopp-fokuskommun {
-  flex: 0 1 240px;
-  min-width: 180px;
+  flex: 0 1 300px;
+  min-width: 220px;
 }
-.avlopp-layout .avlopp-fokuskommun .form-group { margin-bottom: 0; }
+.avlopp-layout .avlopp-fokuskommun-label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 2px;
+}
+.avlopp-layout .avlopp-fokuskommun-rad {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.avlopp-layout .avlopp-fokuskommun-rad .form-group { margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
+/* "Jämför alla kommuner" ska få plats utan att klippas av, både i fältet och i dropdown-panelen. */
+.avlopp-layout .avlopp-fokuskommun-rad .selectize-control,
+.avlopp-layout .avlopp-fokuskommun-rad .selectize-dropdown {
+  min-width: 210px;
+}
+.avlopp-layout .avlopp-fokuskommun-rensa {
+  flex: 0 0 auto;
+  color: #888;
+  padding: 4px 2px;
+}
+.avlopp-layout .avlopp-fokuskommun-rensa:hover { color: #ae2d3a; }
 .avlopp-layout .avlopp-tid-toolbar .shiny-options-group {
   display: flex;
   gap: 14px;
