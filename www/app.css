@@ -563,7 +563,7 @@
    jämnbördigt tredje diagram. */
 .avlopp-layout .avlopp-diagram-cell--kontroll {
   height: 170px;
-  margin-top: -6px;
+  margin-top: 18px;
 }
 
 @media (max-width: 991px) {
