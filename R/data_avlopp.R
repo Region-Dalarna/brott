@@ -99,6 +99,25 @@ avlopp_senaste_per_kommun <- function(df, substans_vald, enhet_vald) {
     mutate(varde = ifelse(is.nan(varde), NA_real_, varde))
 }
 
+# Mätvärden för EN specifik tidpunkt (säsong), en rad per kommun(/plats) - till skillnad från
+# avlopp_senaste_per_kommun() som alltid tar den senaste tillgängliga säsongen oavsett om den
+# skiljer sig åt mellan kommuner. Används av stapeldiagrammet när användaren valt en annan
+# tidpunkt än standardvalet "senaste" - kommuner som inte provtogs just den säsongen saknas
+# (eller får varde = NA om de har en rad för perioden men inget detekterbart värde).
+avlopp_vid_tidpunkt <- function(df, substans_vald, enhet_vald, period_vald) {
+  df %>%
+    filter(substans == substans_vald, enhet == enhet_vald, period == period_vald) %>%
+    group_by(kommunkod, kommun, kommun_etikett, plats) %>%
+    summarise(
+      period         = dplyr::first(period),
+      sasongsnyckel  = dplyr::first(sasongsnyckel),
+      varde          = mean(varde, na.rm = TRUE),
+      flaggor        = paste(unique(stats::na.omit(flagga)), collapse = ", "),
+      .groups = "drop"
+    ) %>%
+    mutate(varde = ifelse(is.nan(varde), NA_real_, varde))
+}
+
 # avlopp_senaste_per_kommun(), aggregerad till en rad per kommun(kod) - för kartan, som har en
 # polygon per kommun och inte kan visa flera platser separat. Kommuner med flera platser
 # färgsätts efter den plats som mättes senast (högst sasongsnyckel); om platserna råkar ha

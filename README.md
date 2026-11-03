@@ -17,6 +17,24 @@ som mättes senast (högst `sasongsnyckel`) för polygonens färg; om platserna 
 från samma säsong används istället den högsta av dem. Tooltipen är opåverkad av detta - den
 listar ändå varje plats för sig (med värde, period och ev. flaggor) när kommunen har mer än en.
 
+## Avloppsmätningar - tidpunktsväljare i stapeldiagrammet
+
+Stapeldiagrammet visar som standard varje kommuns senaste mätning (`avlopp_senaste_per_kommun()`),
+vilket kan innebära olika säsonger för olika kommuner. Staplarna färgläggs därför efter
+tidpunkt (`period`) så att det syns tydligt när de inte är direkt jämförbara. Man kan även välja
+en specifik tidpunkt i `avlopp_tidpunkt`-väljaren (`avlopp_vid_tidpunkt()` i `R/data_avlopp.R`),
+vilket visar samtliga kommuners värde för just den säsongen - då blir alla staplar samma färg,
+eftersom de då faktiskt är jämförbara. Standardvalet styrs av sentinel-värdet
+`AVLOPP_TIDPUNKT_SENASTE` i `global.R`, av samma anledning som `AVLOPP_FOKUS_ALLA` (se nedan).
+
+## Avloppsmätningar - "Jämför alla kommuner" och sentinel-värden i selectize
+
+`AVLOPP_FOKUS_ALLA`/`AVLOPP_TIDPUNKT_SENASTE` i `global.R` MÅSTE vara icke-tomma strängar.
+selectize.js (som Shinys `selectInput` använder) tolkar ett val med tomt värde (`""`) som en
+platshållartext i stället för ett riktigt, klickbart listval - det alternativet går då aldrig
+att välja i efterhand om det försöker använda `""`. Strängarna är bara till för att aldrig
+krocka med ett riktigt `kommun_etikett`/period-värde.
+
 ## Struktur
 
 - All appkod ligger i katalogen `app/`

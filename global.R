@@ -52,5 +52,9 @@ avlopp_stat_tabell <- list(databas = "sekretess", anvandare = "shiny_las_sekrete
 # försöker använda "". Strängen är bara till för att aldrig krocka med ett riktigt kommun_etikett.
 AVLOPP_FOKUS_ALLA <- "__alla_kommuner__"
 
+# Värdet för "Senaste mätning per kommun" (standardvalet) i stapeldiagrammets tidpunktsväljare -
+# samma icke-tomma-sträng-princip som AVLOPP_FOKUS_ALLA ovan, av samma anledning.
+AVLOPP_TIDPUNKT_SENASTE <- "__senaste__"
+
 # färgvektor
 rus_tre_fokus <- c("#93cec1", "#178571", "#000000")

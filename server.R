@@ -2135,6 +2135,40 @@ shinyServer(function(input, output, session) {
                        selected = valt)
   })
 
+  # Uppdatera tidpunktslistan (stapeldiagrammet) efter vilka säsonger som finns för valt ämne.
+  # Behåller valet om det fortfarande är giltigt, annars återgår det till "Senaste mätning per
+  # kommun" (AVLOPP_TIDPUNKT_SENASTE = standardvalet, där varje kommun visar sin egen senaste
+  # säsong oavsett om den skiljer sig från övriga kommuners).
+  observeEvent(avlopp_tid_df(), {
+    perioder <- avlopp_tid_df() %>%
+      dplyr::distinct(period, sasongsnyckel) %>%
+      dplyr::arrange(dplyr::desc(sasongsnyckel)) %>%
+      dplyr::pull(period) %>%
+      as.character()
+
+    valt <- if (isTruthy(input$avlopp_tidpunkt) && input$avlopp_tidpunkt %in% perioder) {
+      input$avlopp_tidpunkt
+    } else {
+      AVLOPP_TIDPUNKT_SENASTE
+    }
+
+    updateSelectInput(session, "avlopp_tidpunkt",
+                       choices = c("Senaste mätning per kommun" = AVLOPP_TIDPUNKT_SENASTE, perioder),
+                       selected = valt)
+  })
+
+  # Data till stapeldiagrammet: senaste mätningen per kommun (standard) eller, om användaren
+  # valt en specifik tidpunkt i tidpunktsväljaren, samtliga kommuners värden för just den
+  # säsongen (oavsett om det råkar vara deras senaste eller inte).
+  avlopp_stapel_df <- reactive({
+    req(avloppsmatningar(), input$avlopp_substans)
+    if (!isTruthy(input$avlopp_tidpunkt) || identical(input$avlopp_tidpunkt, AVLOPP_TIDPUNKT_SENASTE)) {
+      avlopp_senaste_df()
+    } else {
+      avlopp_vid_tidpunkt(avloppsmatningar(), input$avlopp_substans, avlopp_standardenhet, input$avlopp_tidpunkt)
+    }
+  })
+
   # Diagramhöjd i pixlar, räknad från antal kommuner som faktiskt ska visas - så att
   # diagrammen inte har onödigt tomrum idag (bara fyra kommuner), men växer av sig själva
   # i takt med att fler kommuner får mätningar, upp till ett tak som matchar kartans höjd.
@@ -2144,7 +2178,7 @@ shinyServer(function(input, output, session) {
   }
 
   avlopp_bar_hojd <- reactive({
-    n <- avlopp_senaste_df() %>% dplyr::filter(!is.na(varde)) %>% nrow()
+    n <- avlopp_stapel_df() %>% dplyr::filter(!is.na(varde)) %>% nrow()
     avlopp_diagramhojd(n, pixlar_per_rad = 46, fast_omkostnad = 90)
   })
 
@@ -2306,14 +2340,17 @@ shinyServer(function(input, output, session) {
       )
   })
 
-  # --- Stapeldiagram: senaste mätningen, rankad ---
+  # --- Stapeldiagram: senaste mätningen (eller en vald tidpunkt), rankad ---
   output$diagram_avlopp_senaste <- renderGirafe({
-    req(avlopp_senaste_df())
+    req(avlopp_stapel_df())
 
-    plot_data <- avlopp_senaste_df() %>%
+    plot_data <- avlopp_stapel_df() %>%
       dplyr::filter(!is.na(varde)) %>%
       mutate(
         kommun_etikett = forcats::fct_reorder(kommun_etikett, varde),
+        # Säsongsordnad, så att färgskalan går kronologiskt (äldst -> senast) oavsett vilken
+        # ordning kommunerna råkar hamna i på y-axeln.
+        period = forcats::fct_reorder(period, sasongsnyckel),
         etikett = paste0(kommun_etikett, ": ", format(round(varde, 1), big.mark = " ", decimal.mark = ","),
                          " mg/1000 inv & dygn\n", period,
                          ifelse(nzchar(flaggor), paste0("\n", flaggor), ""))
@@ -2324,19 +2361,33 @@ shinyServer(function(input, output, session) {
                       labs(title = "Inga mätningar av valt ämne ännu"), bg = "transparent"))
     }
 
-    p <- ggplot(plot_data, aes(x = kommun_etikett, y = varde)) +
-      geom_col_interactive(aes(tooltip = etikett, data_id = kommun_etikett), fill = "#0f7090") +
+    # "Senaste mätning per kommun" kan innebära olika säsonger för olika kommuner - då är
+    # tydliga, olika färger per tidpunkt extra viktigt så att man inte tror att staplarna är
+    # direkt jämförbara. Vid en vald, specifik tidpunkt blir det bara en färg (alla kommuner
+    # delar då samma säsong), vilket är korrekt eftersom de då faktiskt är jämförbara.
+    rubrik <- if (!isTruthy(input$avlopp_tidpunkt) || identical(input$avlopp_tidpunkt, AVLOPP_TIDPUNKT_SENASTE)) {
+      paste0(input$avlopp_substans, " – senaste mätningen per kommun")
+    } else {
+      paste0(input$avlopp_substans, " – ", input$avlopp_tidpunkt)
+    }
+
+    p <- ggplot(plot_data, aes(x = kommun_etikett, y = varde, fill = period)) +
+      geom_col_interactive(aes(tooltip = etikett, data_id = kommun_etikett)) +
       coord_flip() +
+      scale_fill_viridis_d(name = "Tidpunkt", end = 0.85) +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = NULL, y = "mg per 1000 inv. & dygn",
-           title = paste0(input$avlopp_substans, " – senaste mätningen per kommun"),
+           title = rubrik,
            subtitle = avlopp_kontrollvarde_notis(input$avlopp_substans),
            caption = KALLA_RISE) +
       theme_minimal(base_size = diagram_text_storlek) +
       theme(
         panel.background = element_rect(fill = "transparent", color = NA),
         plot.background  = element_rect(fill = "transparent", color = NA),
+        legend.position = "right",
+        legend.title = element_text(size = diagram_axeltext_storlek),
+        legend.text = element_text(size = diagram_axeltext_storlek),
         plot.title = element_textbox_simple(
           size = diagram_rubrik_storlek, face = "bold",
           margin = margin(b = 8), width = unit(1, "npc")),
@@ -2447,6 +2498,15 @@ shinyServer(function(input, output, session) {
     fokus <- input$avlopp_fokuskommun
     alla_kommuner <- sort(unique(plot_data$kommun_etikett))
     har_fokus <- isTruthy(fokus) && fokus %in% alla_kommuner
+
+    # "Visa bara min kommun" - bara meningsfullt när en kommun är fokuserad (kryssrutan är
+    # dold i UI:t annars, se ui.R). Filtrerar bort övriga kommuners rader helt i stället för
+    # att bara tona ner dem, så de grå linjerna försvinner helt ur diagrammet.
+    bara_fokus <- har_fokus && isTruthy(input$avlopp_bara_fokus) && input$avlopp_bara_fokus
+    if (bara_fokus) {
+      plot_data <- plot_data %>% dplyr::filter(kommun_etikett == fokus)
+      alla_kommuner <- fokus
+    }
 
     if (har_fokus) {
       plot_data <- plot_data %>% mutate(kommun_etikett = forcats::fct_relevel(kommun_etikett, fokus, after = Inf))

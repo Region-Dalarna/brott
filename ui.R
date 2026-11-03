@@ -219,6 +219,28 @@ shinyUI(tagList(
       # Flik 3: Avloppsmätningar (RISE)
       # ----------------------------
       tabPanel("Avloppsmätningar",
+               # Dyker upp som en notis nere till höger när man öppnar fliken, ligger kvar en
+               # lång stund så att alla hinner läsa den, och går även att stänga direkt med
+               # krysset - samma mönster som appens Utbildning och Branscher, men begränsat till
+               # just den här fliken (inte hela appen).
+               tags$div(
+                 id = "avlopp-dev-notice", class = "rd-dev-notice", role = "status",
+                 tags$button(
+                   type = "button", class = "rd-dev-notice__stang",
+                   onclick = "document.getElementById('avlopp-dev-notice').classList.add('rd-dev-notice--dold')",
+                   `aria-label` = "Stäng meddelandet", HTML("&times;")
+                 ),
+                 h3("Fliken är under utveckling"),
+                 p("Avloppsmätningar byggs och utvecklas löpande, så innehåll och utseende kan komma att ändras."),
+                 p("Har du frågor eller funderingar? Hör gärna av dig till ",
+                   tags$a(href = "mailto:samhallsanalys@regiondalarna.se", "samhallsanalys@regiondalarna.se"), "."),
+                 tags$script(HTML(
+                   "setTimeout(function() {",
+                   "  var el = document.getElementById('avlopp-dev-notice');",
+                   "  if (el) el.classList.add('rd-dev-notice--dold');",
+                   "}, 25000);"
+                 ))
+               ),
                div(class = "avlopp-layout",
                    fluidRow(
                      # Vänster: karta, exakt samma storlek/form som i Polisstatistik-fliken
@@ -249,6 +271,13 @@ shinyUI(tagList(
                              tags$li("En lucka i diagrammen betyder att ämnet inte gick att detektera eller kvantifiera i just det provet - inte att halten var noll.")
                            )
                        ),
+                       # Tidpunkt för stapeldiagrammet - "Senaste mätning per kommun" är
+                       # standardvalet (se AVLOPP_TIDPUNKT_SENASTE i global.R), men man kan
+                       # även välja en specifik säsong för att jämföra kommunerna vid exakt
+                       # samma tidpunkt.
+                       div(class = "avlopp-filter avlopp-stapel-toolbar",
+                           selectInput("avlopp_tidpunkt", "Tidpunkt:", choices = NULL)
+                       ),
                        # Höjden sätts dynamiskt i servern efter antal kommuner med data, så att
                        # diagrammen inte har onödigt tomrum idag men växer av sig själva i takt
                        # med att fler kommuner får mätningar.
@@ -256,15 +285,25 @@ shinyUI(tagList(
                        div(class = "avlopp-tid-toolbar",
                            conditionalPanel(
                              condition = "input.avlopp_vy == 'linje'",
-                             div(class = "avlopp-fokuskommun",
-                                 tags$label("Fokusera på kommun:", `for` = "avlopp_fokuskommun",
-                                            class = "avlopp-fokuskommun-label"),
-                                 # "Jämför alla kommuner" (AVLOPP_FOKUS_ALLA, se global.R) nålas
-                                 # fast överst i dropdown-panelen via CSS (se
-                                 # .option[data-value="__alla_kommuner__"] i app.css) - annars
-                                 # scrollar selectize ned till den redan valda kommunen när
-                                 # listan öppnas och gömmer alternativet.
-                                 selectInput("avlopp_fokuskommun", NULL, choices = NULL, width = "100%")
+                             div(class = "avlopp-fokus-grupp",
+                                 div(class = "avlopp-fokuskommun",
+                                     tags$label("Fokusera på kommun:", `for` = "avlopp_fokuskommun",
+                                                class = "avlopp-fokuskommun-label"),
+                                     # "Jämför alla kommuner" (AVLOPP_FOKUS_ALLA, se global.R) nålas
+                                     # fast överst i dropdown-panelen via CSS (se
+                                     # .option[data-value="__alla_kommuner__"] i app.css) - annars
+                                     # scrollar selectize ned till den redan valda kommunen när
+                                     # listan öppnas och gömmer alternativet.
+                                     selectInput("avlopp_fokuskommun", NULL, choices = NULL, width = "100%")
+                                 ),
+                                 # Bara meningsfull (och synlig) när en enskild kommun är vald -
+                                 # annars finns ingen "egen kommun" att visa bara den.
+                                 conditionalPanel(
+                                   condition = sprintf("input.avlopp_fokuskommun != '%s'", AVLOPP_FOKUS_ALLA),
+                                   div(class = "avlopp-bara-fokus",
+                                       checkboxInput("avlopp_bara_fokus", "Visa bara min kommun", value = FALSE)
+                                   )
+                                 )
                              )
                            ),
                            radioButtons("avlopp_vy", NULL,

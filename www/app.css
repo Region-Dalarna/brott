@@ -10,6 +10,64 @@
   padding-top: 18px;
 }
 
+/* ---- "Fliken är under utveckling"-notis (samma mönster som Utbildning/Branscher, men
+   placerad inuti en enskild tabPanel i stället för hela appen - se ui.R/Avloppsmätningar) ---- */
+.rd-dev-notice {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  max-width: 380px;
+  background: var(--rd-info-bg);
+  border-left: 4px solid var(--rd-primary);
+  border-radius: var(--rd-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 18px 40px 18px 20px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.rd-dev-notice--dold {
+  opacity: 0;
+  transform: translateY(16px);
+  pointer-events: none;
+}
+.rd-dev-notice h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  padding-right: 20px;
+}
+.rd-dev-notice p {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.rd-dev-notice p:last-child { margin-bottom: 0; }
+.rd-dev-notice__stang {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--rd-text-muted);
+  cursor: pointer;
+}
+.rd-dev-notice__stang:hover { color: var(--rd-text); }
+
+@media (max-width: 600px) {
+  .rd-dev-notice {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
+}
+
 /* ---- Globala knappar (downloadButton m.fl.) i regionens profil ---- */
 .btn-default,
 .shiny-download-link.btn,
@@ -393,6 +451,14 @@
 }
 .avlopp-layout .avlopp-filter .form-group { margin-bottom: 0; }
 
+/* Tidpunktsväljaren för stapeldiagrammet - egen liten rad, inte ihopblandad med
+   kategori/ämne-filtren ovanför eftersom den bara påverkar stapeldiagrammet. */
+.avlopp-layout .avlopp-stapel-toolbar {
+  flex: none;
+  max-width: 260px;
+  margin: 0 0 10px;
+}
+
 /* Infopanel om hur resultaten ska tolkas - ihopfälld som standard så den inte tar plats från
    diagrammen, men lätt att hitta för den som vill läsa om fallgropar och förbehåll. */
 .avlopp-layout .avlopp-info {
@@ -427,7 +493,7 @@
   gap: 12px;
   margin: -4px 0 12px;
 }
-.avlopp-layout .avlopp-fokuskommun {
+.avlopp-layout .avlopp-fokus-grupp {
   flex: 0 1 300px;
   min-width: 220px;
 }
@@ -438,6 +504,19 @@
   margin-bottom: 2px;
 }
 .avlopp-layout .avlopp-fokuskommun .form-group { margin-bottom: 0; }
+/* Kryssrutan för "Visa bara min kommun" hamnar direkt under kommunväljaren, som en del av
+   samma grupp - inte som ett eget flex-element i verktygsraden. */
+.avlopp-layout .avlopp-bara-fokus {
+  margin-top: 6px;
+}
+.avlopp-layout .avlopp-bara-fokus .checkbox {
+  margin: 0;
+}
+.avlopp-layout .avlopp-bara-fokus label {
+  font-size: 12px;
+  color: #666;
+  font-weight: normal;
+}
 /* "Jämför alla kommuner" ska få plats utan att klippas av, både i fältet och i dropdown-panelen. */
 .avlopp-layout .avlopp-fokuskommun .selectize-control,
 .avlopp-layout .avlopp-fokuskommun .selectize-dropdown {
