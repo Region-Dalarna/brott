@@ -2155,6 +2155,23 @@ shinyServer(function(input, output, session) {
     avlopp_diagramhojd(n, pixlar_per_rad = 42, fast_omkostnad = 110)
   })
 
+  # ggiraph/girafe skalar bara SVG:n efter containerns BREDD (opts_sizing(rescale=TRUE, width=1))
+  # och behåller sedan alltid förhållandet width_svg:height_svg - en fast height_svg ger alltså en
+  # renderad höjd som bara råkar matcha den css-satta div-höjden vid en viss fönsterbredd. Vid en
+  # bredare skärm blir diagrammet högre än sin box och målar över det som kommer efter. Genom att
+  # läsa av den faktiska renderade bredden (session$clientData, som Shiny alltid exponerar per
+  # output) och räkna om height_svg så att width_svg/height_svg-förhållandet ger exakt
+  # onskad_hojd_px vid just den bredden, blir diagrammet alltid lika högt som sin div - oavsett
+  # fönsterstorlek.
+  avlopp_height_svg <- function(output_id, onskad_hojd_px, width_svg = 9, fallback = 4.2) {
+    bredd_px <- session$clientData[[paste0("output_", output_id, "_width")]]
+    if (isTruthy(bredd_px) && bredd_px > 0) {
+      width_svg * onskad_hojd_px / bredd_px
+    } else {
+      fallback
+    }
+  }
+
   output$avlopp_diagram_senaste_ui <- renderUI({
     req(avlopp_bar_hojd())
     div(class = "avlopp-diagram-cell",
@@ -2333,7 +2350,8 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = 4.2, bg = "transparent",
+      ggobj = p, width_svg = 9, height_svg = avlopp_height_svg("diagram_avlopp_senaste", avlopp_bar_hojd()),
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:0.5;"),
@@ -2387,7 +2405,8 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = 4.2, bg = "transparent",
+      ggobj = p, width_svg = 9, height_svg = avlopp_height_svg("diagram_avlopp_heatmap", avlopp_tid_hojd()),
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:0.5;"),
@@ -2466,7 +2485,8 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = 4.2, bg = "transparent",
+      ggobj = p, width_svg = 9, height_svg = avlopp_height_svg("diagram_avlopp_tid_linje", avlopp_tid_hojd()),
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:0.3;"),
@@ -2530,7 +2550,9 @@ shinyServer(function(input, output, session) {
       )
 
     girafe(
-      ggobj = p, width_svg = 9, height_svg = 1.9, bg = "transparent",
+      # 150px matchar den fasta höjden på .avlopp-diagram-cell--kontroll i app.css.
+      ggobj = p, width_svg = 9, height_svg = avlopp_height_svg("diagram_avlopp_kontroll", 150, fallback = 1.9),
+      bg = "transparent",
       options = list(
         opts_sizing(rescale = TRUE, width = 1),
         opts_hover_inv(css = "opacity:0.4;"),

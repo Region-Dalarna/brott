@@ -259,10 +259,11 @@ shinyUI(tagList(
                              div(class = "avlopp-fokuskommun",
                                  tags$label("Fokusera på kommun:", `for` = "avlopp_fokuskommun",
                                             class = "avlopp-fokuskommun-label"),
-                                 # "Jämför alla kommuner" (tomt värde) nålas fast överst i
-                                 # dropdown-panelen via CSS (se .option[data-value=""] i
-                                 # app.css) - annars scrollar selectize ned till den redan
-                                 # valda kommunen när listan öppnas och gömmer alternativet.
+                                 # "Jämför alla kommuner" (AVLOPP_FOKUS_ALLA, se global.R) nålas
+                                 # fast överst i dropdown-panelen via CSS (se
+                                 # .option[data-value="__alla_kommuner__"] i app.css) - annars
+                                 # scrollar selectize ned till den redan valda kommunen när
+                                 # listan öppnas och gömmer alternativet.
                                  selectInput("avlopp_fokuskommun", NULL, choices = NULL, width = "100%")
                              )
                            ),
