@@ -4,6 +4,8 @@ library(leaflet)
 library(ggiraph)
 library(shinyjs)
 
+APP_BESKRIVNING <- "Polisstatistik, BRÅ:s kommunindikatorer och avloppsmätningar som stöd för det brottsförebyggande arbetet i Dalarna."
+
 # Liten alltid-synlig badge som markerar klickbara figurer
 klick_hint <- function(text = "Klickbar – borra ner") {
   div(class = "klick-hint",
