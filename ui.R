@@ -6,6 +6,8 @@ library(shinyjs)
 
 APP_BESKRIVNING <- "Polisstatistik, BRÅ:s kommunindikatorer och avloppsmätningar som stöd för det brottsförebyggande arbetet i Dalarna."
 
+APP_TITEL <- "Brottsförebyggande arbete i Dalarna"
+
 # Liten alltid-synlig badge som markerar klickbara figurer
 klick_hint <- function(text = "Klickbar – borra ner") {
   div(class = "klick-hint",
@@ -16,7 +18,7 @@ klick_hint <- function(text = "Klickbar – borra ner") {
 shinyUI(tagList(
 
   tags$head(
-    tags$title("Brottsförebyggande arbete i Dalarna"),
+    tags$title(APP_TITEL),
     tags$link(rel = "icon", type = "image/x-icon", href = "favicon.ico"),
 
     # Delad identitet för Regionala utvecklingsförvaltningen (petrolblå)
@@ -58,7 +60,7 @@ shinyUI(tagList(
     class = "rd-header",
     div(
       class = "rd-header__title",
-      "Brottsförebyggande arbete i Dalarna"
+      APP_TITEL
     ),
     tags$a(
       href = "https://www.regiondalarna.se/verksamhet/regional-utveckling/statistik-och-rapporter/",
@@ -70,6 +72,7 @@ shinyUI(tagList(
 
   # ---- Huvudinnehåll ----
   fluidPage(
+    title = APP_TITEL,  # webbläsarflikens rubrik
 
     tabsetPanel(
       id = "flikval",
