@@ -548,7 +548,7 @@ shinyServer(function(input, output, session) {
         return(
           #leaflet(df_map) |>
           leaflet() |>
-            addProviderTiles("OpenStreetMap.Mapnik", options = providerTileOptions(opacity = 0.45)) |>
+            lagg_till_bakgrundskarta() |>
             addControl("Inga data för vald nivå/kombination",
                        position = "topright",
                        className = "map-filter-text")
@@ -601,7 +601,7 @@ shinyServer(function(input, output, session) {
     # 6. Välj bas-objekt: ny karta eller uppdatering
     bas <- if (!ar_uppdatering) {
       leaflet(df_map) %>%
-        addProviderTiles("OpenStreetMap.Mapnik", options = providerTileOptions(opacity = 0.45))
+        lagg_till_bakgrundskarta()
     } else {
       leafletProxy("karta_brott", data = df_map) %>%
         clearShapes() %>%
@@ -2285,7 +2285,7 @@ shinyServer(function(input, output, session) {
     if (all(is.na(df_map$varde))) {
       return(
         leaflet(df_map) %>%
-          addProviderTiles("OpenStreetMap.Mapnik", options = providerTileOptions(opacity = 0.45)) %>%
+          lagg_till_bakgrundskarta() %>%
           addPolygons(fillOpacity = 0.15, color = "#555555", weight = 0.7, fillColor = "#e8e8e8") %>%
           addControl(
             paste0("Inga kvantifierbara mätningar av ", tolower(input$avlopp_substans), " än"),
@@ -2334,7 +2334,7 @@ shinyServer(function(input, output, session) {
     )
 
     leaflet(df_map) %>%
-      addProviderTiles("OpenStreetMap.Mapnik", options = providerTileOptions(opacity = 0.45)) %>%
+      lagg_till_bakgrundskarta() %>%
       addPolygons(
         fillOpacity = ~ifelse(is.na(varde), 0.25, 0.75),
         color       = "#555555",
