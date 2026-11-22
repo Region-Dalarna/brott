@@ -9,6 +9,10 @@ library(ggtext)
 library(lubridate)
 library(rdshinyappar)
 
+# Felmeddelanden: på servern visas inga R-fel för användaren (sanitize = TRUE); felet skrivs ändå till appens logg
+# (se Adminportalen, Driftstatus - Loggar). Lokalt i RStudio visas felen i klartext för att underlätta felsökning.
+options(shiny.sanitize.errors = !interactive())
+
 telemetry <- skapa_telemetry("brott")                     # för telemetry-paketet, mäta aktivitet i appen
 
 options(dplyr.summarise.inform = FALSE)
