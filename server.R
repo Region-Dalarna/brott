@@ -634,7 +634,9 @@ shinyServer(function(input, output, session) {
 
     # 6. Välj bas-objekt: ny karta eller uppdatering
     bas <- if (!ar_uppdatering) {
-      leaflet(df_map) %>%
+      # zoomSnap < 1 låter fitBounds zooma in till exakt passning. Med heltalssteg (standard) rundas
+      # zoomen nedåt till närmaste hela nivå, och då blir t.ex. Dalarna mycket mindre än det behöver vara
+      leaflet(df_map, options = leafletOptions(zoomSnap = 0.1, zoomDelta = 0.5)) %>%
         lagg_till_bakgrundskarta()
     } else {
       leafletProxy("karta_brott", data = df_map) %>%
