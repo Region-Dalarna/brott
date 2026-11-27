@@ -575,3 +575,17 @@
   }
   .avlopp-layout #karta_avlopp { height: 50vh !important; }
 }
+
+
+/* ---- Länsväljare i rubriken ---- */
+.rd-header__lan { display: flex; align-items: center; gap: 8px; margin-right: 24px; }
+.rd-header__lan label { margin: 0; font-size: 0.85rem; font-weight: 500; color: #fff; white-space: nowrap; }
+.rd-header__lan .form-group { margin: 0; }
+.rd-header__lan .selectize-input { min-height: 32px; padding: 4px 10px; }
+@media (max-width: 900px) {
+  .rd-header { flex-wrap: wrap; }
+  .rd-header__lan { order: 3; width: 100%; margin: 4px 0 6px 0; }
+}
+
+/* ---- Meddelande när avloppsdata saknas för valt län ---- */
+.avlopp-saknas { max-width: 600px; margin: 40px auto; text-align: center; color: #555; }

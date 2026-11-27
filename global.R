@@ -19,8 +19,18 @@ options(dplyr.summarise.inform = FALSE)
 
 # ---- 1. Läs in data ----
 
+# Län som ingår i rapporten (Polisregion Bergslagen). Läggs ett län till här (och i databastabellerna
+# nedan) kommer det med i länsväljaren, kartor och BRÅ-fliken.
+LAN_KODER <- c("Dalarna" = "20", "Örebro" = "18", "Värmland" = "17")
+
+# Länsnamnen så som de heter i bra.kommunindikatorer (kolumnen geografi)
+LAN_BRA_NAMN <- c("20" = "Dalarnas län", "18" = "Örebro län", "17" = "Värmlands län")
+
+# Alternativen i länsväljaren (värde "alla" = samtliga län i polisregionen)
+LAN_VAL <- c("Polisregion Bergslagen" = "alla", LAN_KODER)
+
 kommun_sf <- tbl(shiny_uppkoppling_las("geodata"), dbplyr::in_schema("karta", "kommun_scb")) %>%                # använd dbplyr för att hämta delar av tabellen
-  filter(str_sub(knkod, 1, 2) == "20") %>%                                               # filtrera ut Dalarnas kommuner
+  filter(str_sub(knkod, 1, 2) %in% LAN_KODER) %>%                                         # filtrera ut kommunerna i de aktuella länen
   collect() %>%                                                                          # först här görs uttaget ur databasen
   df_till_sf() %>%
   rename(kommunkod = knkod, kommunnamn = knnamn) %>%
@@ -28,7 +38,7 @@ kommun_sf <- tbl(shiny_uppkoppling_las("geodata"), dbplyr::in_schema("karta", "k
 
 # läs in från vår geodatabas i postgis/postgres
 deso_sf <- tbl(shiny_uppkoppling_las("geodata"), dbplyr::in_schema("karta", "deso")) %>%
-  filter(lanskod == "20") %>%                                               # filtrera ut Dalarnas kommuner
+  filter(lanskod %in% LAN_KODER) %>%                                         # filtrera ut DeSO i de aktuella länen
   collect() %>%                                                                          # först här görs uttaget ur databasen
   df_till_sf() %>%
   rename(kommunkod = kommunkod, kommunnamn = kommunnamn) %>%
@@ -37,7 +47,8 @@ deso_sf <- tbl(shiny_uppkoppling_las("geodata"), dbplyr::in_schema("karta", "des
 # läs in från vår postgres-databas som heter oppna_data - där vi skapat denna särskilt för att vi imputerar år som inte finns
 # hos scb på deso och befolking men som finns i polisens data
 bef_df <- tbl(shiny_uppkoppling_las("oppna_data"), dbplyr::in_schema("brottsforebyggande", "bef_deso_med_imputering")) %>%
-  collect()
+  collect() %>%
+  filter(str_sub(kommunkod, 1, 2) %in% LAN_KODER)
 
 # # läs in från vår postgres-databas som heter oppna_data
 # bra_kommunindikatorer <- tbl(shiny_uppkoppling_las("oppna_data"), dbplyr::in_schema("bra", "kommunindikatorer")) %>%

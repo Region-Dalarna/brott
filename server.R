@@ -236,6 +236,34 @@ shinyServer(function(input, output, session) {
   vald_indelning <- reactiveVal("brottskategorier")             # typ av brottshierarki (polisens egna = Brottskategorier), eller egna
   vald_max_niva_kategori <- reactiveVal(NULL)  # Håller reda på vald kategori på max-nivå
 
+  # ---- Länsval: Polisregion Bergslagen ("alla") eller ett enskilt län ----
+  # Styr kartor, polisdata, befolkning, BRÅ-fliken och avloppsmätningarna
+  vald_lan_koder <- reactive({
+    lan <- input$lan
+    if (is.null(lan) || !lan %in% LAN_VAL || lan == "alla") unname(LAN_KODER) else lan
+  })
+
+  lan_text <- reactive({
+    if (length(vald_lan_koder()) > 1) "i Polisregion Bergslagen"
+    else paste0("i ", names(LAN_KODER)[match(vald_lan_koder(), LAN_KODER)])
+  })
+
+  kommun_sf_val <- reactive(dplyr::filter(kommun_sf, str_sub(kommunkod, 1, 2) %in% vald_lan_koder()))
+  deso_sf_val   <- reactive(dplyr::filter(deso_sf,   str_sub(kommunkod, 1, 2) %in% vald_lan_koder()))
+  bef_df_val    <- reactive(dplyr::filter(bef_df,    str_sub(kommunkod, 1, 2) %in% vald_lan_koder()))
+
+  # Återställ vald kommun/DeSO när länet byts, annars kan en kommun i ett annat län ligga kvar som val
+  observeEvent(input$lan, {
+    kartniva("kommun")
+    vald_kommun("Alla")
+    vald_deso(NULL)
+  }, ignoreInit = TRUE)
+
+  # Länet användaren valde senast (sparas i webbläsarens localStorage, se ui.R)
+  observeEvent(input$lan_sparat, {
+    if (input$lan_sparat %in% LAN_VAL) updateSelectInput(session, "lan", selected = input$lan_sparat)
+  }, once = TRUE)
+
 
   meta_polisen <- reactive({
     tbl(
@@ -246,7 +274,7 @@ shinyServer(function(input, output, session) {
       collect()
   })
 
-  brottsdata <- reactive({
+  brottsdata_alla <- reactive({
     meta_polisen()   # ← trigger
 
     tbl(
@@ -254,6 +282,12 @@ shinyServer(function(input, output, session) {
       dbplyr::in_schema("polisen", "brott")
     ) %>%
       collect()
+  })
+
+  # Polisdata för valt län (eller alla län i polisregionen)
+  brottsdata <- reactive({
+    brottsdata_alla() %>%
+      filter(str_sub(kommunkod, 1, 2) %in% vald_lan_koder())
   })
 
   brott_niva_nyckel <- reactive({
@@ -266,16 +300,16 @@ shinyServer(function(input, output, session) {
       collect()
   })
 
-  # Vilka årmånader har rapporterad data för samtliga Dalarnas kommuner?
+  # Vilka årmånader har rapporterad data för samtliga kommuner i valt län?
   # Används för att undvika att t.ex. "maj 2025" ser ut att ha kraftigt minskad
-  # brottslighet i Dalarna-vyn bara för att data saknas för 14 av 15 kommuner den månaden.
+  # brottslighet i länsvyn bara för att data saknas för en del av kommunerna den månaden.
   kompletta_manader <- reactive({
-    antal_kommuner_dalarna <- n_distinct(kommun_sf$kommunkod)
+    antal_kommuner_val <- n_distinct(kommun_sf_val()$kommunkod)
 
     brottsdata() %>%
       distinct(kommunkod, `inskr årmånad`) %>%
       count(`inskr årmånad`, name = "antal_kommuner") %>%
-      filter(antal_kommuner >= antal_kommuner_dalarna) %>%
+      filter(antal_kommuner >= antal_kommuner_val) %>%
       dplyr::pull(`inskr årmånad`)
   })
 
@@ -311,7 +345,7 @@ shinyServer(function(input, output, session) {
 
   # updatera inputkontroll i ui för tidsperiod
   observe({
-    ar <- sort(unique(format(brottsdata()$inskrivningsdatum, "%Y")), decreasing = TRUE)
+    ar <- sort(unique(format(brottsdata_alla()$inskrivningsdatum, "%Y")), decreasing = TRUE)
 
     updateSelectInput(
       session,
@@ -321,7 +355,7 @@ shinyServer(function(input, output, session) {
     )
 
     # YYYY-MM-valen för "Anpassad period…"
-    armanader <- sort(unique(format(brottsdata()$inskrivningsdatum, "%Y%m")))
+    armanader <- sort(unique(format(brottsdata_alla()$inskrivningsdatum, "%Y%m")))
     if (length(armanader) > 0) {
       etiketter <- vapply(armanader, format_armanad, character(1))
       val_vec <- setNames(armanader, etiketter)
@@ -337,7 +371,7 @@ shinyServer(function(input, output, session) {
   # för att använda i kart- och diagramrubriker, Dalarna eller vald kommun
   geografi_text <- reactive({
     if (vald_kommun() == "Alla") {
-      "i Dalarna"
+      lan_text()
     } else {
       paste0("i ", vald_kommun())
     }
@@ -452,7 +486,7 @@ shinyServer(function(input, output, session) {
 
     # Lägg till kommun
     kommun_text <- if (vald_kommun() == "Alla") {
-      "i Dalarna"
+      lan_text()
     } else {
       paste0("i ", vald_kommun())
     }
@@ -493,11 +527,11 @@ shinyServer(function(input, output, session) {
     df <- filtrera_data(df_filtrering, vald_kommun(), indelning, niva, brott_niva_nyckel())
 
     if (kartniva() == "kommun") {
-      geo      <- kommun_sf
+      geo      <- kommun_sf_val()
       join_var <- "kommunkod"
       join_namn <- "kommunnamn"
     } else {
-      geo      <- deso_sf %>%
+      geo      <- deso_sf_val() %>%
         filter(kommunnamn == vald_kommun())
       join_var <- "desokod"
       join_namn <- "regsonamn"
@@ -521,7 +555,7 @@ shinyServer(function(input, output, session) {
     }
 
     df <- filtrera_tidsperiod(df, input$val_ar, input$anpassad_fran, input$anpassad_till)                                 # filtrera på tidsperiod
-    df_sum <- summering_med_bef(df, join_var, bef_df, input$val_ar, brott_niva_nyckel_df = brott_niva_nyckel())             # summera ihop antal brott och beräkna brott per 100k invånare
+    df_sum <- summering_med_bef(df, join_var, bef_df_val(), input$val_ar, brott_niva_nyckel_df = brott_niva_nyckel())             # summera ihop antal brott och beräkna brott per 100k invånare
 
     # Slå ihop och behåll join_namn kolumnen
     geo_joined <- left_join(geo, df_sum, by = join_var) %>%
@@ -839,9 +873,10 @@ shinyServer(function(input, output, session) {
     removeNotification("loading_msg")
 
     if (vald_kommun() == "Alla") {
-      df_visa <- df_visa %>% mutate(kommunkod = str_sub(kommunkod, 1, 2))
-      bef_sum <- bef_df %>% mutate(kommunkod = str_sub(kommunkod, 1, 2))
-    } else bef_sum <- bef_df
+      # alla kommuner i valt län (eller polisregionen) summeras ihop till en geografi, "00"
+      df_visa <- df_visa %>% mutate(kommunkod = "00")
+      bef_sum <- bef_df_val() %>% mutate(kommunkod = "00")
+    } else bef_sum <- bef_df_val()
 
     df_sum <- summering_med_bef(df_visa, c("kommunkod", namn_col), bef_sum, input$val_ar, brott_niva_nyckel_df = brott_niva_nyckel())
 
@@ -1104,7 +1139,7 @@ shinyServer(function(input, output, session) {
 
       vald_kommunkod <- klickad_kod                        # Sätt vald kommunkod
 
-      ny_kommun <- kommun_sf %>%
+      ny_kommun <- kommun_sf_val() %>%
         dplyr::filter(kommunkod == vald_kommunkod) %>%
         dplyr::pull(kommunnamn) %>%
         unique()
@@ -1195,7 +1230,7 @@ shinyServer(function(input, output, session) {
       df_manad_data <- df_manad_data %>% filter(desokod == vald_deso())
     }
 
-    # När Dalarna (alla kommuner) visas: ta bara med månader där samtliga
+    # När länet (alla kommuner) visas: ta bara med månader där samtliga
     # kommuner har rapporterat data, annars ser summan ut att minska bara för
     # att data saknas för en del kommuner den månaden
     if (vald_kommun() == "Alla") {
@@ -1223,11 +1258,11 @@ shinyServer(function(input, output, session) {
     geo_join_var <- if (kartniva() == "deso") "desokod" else "kommunkod"
 
     bef_for_manad <- if (vald_kommun() == "Alla") {
-      bef_df %>%
+      bef_df_val() %>%
         group_by(år, kommunkod) %>%
         summarise(bef = sum(bef, na.rm = TRUE), .groups = "drop")
     } else {
-      bef_df %>% filter(kommunkod == unique(df_manad_data$kommunkod))
+      bef_df_val() %>% filter(kommunkod == unique(df_manad_data$kommunkod))
     }
 
     df_manad <- summering_med_bef(
@@ -1513,7 +1548,7 @@ shinyServer(function(input, output, session) {
       df_veckodag_data <- df_veckodag_data %>% filter(desokod == vald_deso())
     }
 
-    # När Dalarna (alla kommuner) visas: ta bara med månader där samtliga
+    # När länet (alla kommuner) visas: ta bara med månader där samtliga
     # kommuner har rapporterat data, för att inte snedvrida veckodagsfördelningen
     if (vald_kommun() == "Alla") {
       df_veckodag_data <- df_veckodag_data %>% filter(`inskr årmånad` %in% kompletta_manader())
@@ -1537,11 +1572,11 @@ shinyServer(function(input, output, session) {
     geo_join_var <- if (kartniva() == "deso") "desokod" else "kommunkod"
 
     bef_for_veckodag <- if (vald_kommun() == "Alla") {
-      bef_df %>%
+      bef_df_val() %>%
         group_by(år, kommunkod) %>%
         summarise(bef = sum(bef, na.rm = TRUE), .groups = "drop")
     } else {
-      bef_df %>% filter(kommunkod == unique(df_veckodag_data$kommunkod))
+      bef_df_val() %>% filter(kommunkod == unique(df_veckodag_data$kommunkod))
     }
 
     df_veckodag <- summering_med_bef(
@@ -1803,22 +1838,35 @@ shinyServer(function(input, output, session) {
     }
   )
 
-  # Uppdatera kommun-listrutan med alla unika kommuner och slumpa förvalet
-  observeEvent(bra_kommunindikatorer(), {
-    alla_geo <- sort(unique(bra_kommunindikatorer()$geografi))
+  # Länsraden i BRÅ-data för vald kommun (eller för länet om ett län är valt)
+  bra_lan_valt <- reactive({
+    kommun <- input$kommun
+    if (is.null(kommun) || kommun == "") return(character(0))
+    if (kommun %in% LAN_BRA_NAMN) return(kommun)
+    kod <- kommun_sf$kommunkod[kommun_sf$kommunnamn == kommun]
+    lan <- unname(LAN_BRA_NAMN[str_sub(kod[1], 1, 2)])
+    lan[!is.na(lan)]
+  })
+
+  # Uppdatera kommun-listrutan med kommunerna i valt län (och länsraderna), och slumpa förvalet
+  observeEvent(list(bra_kommunindikatorer(), input$lan), {
+    req(bra_kommunindikatorer())
+    alla_geo <- unique(bra_kommunindikatorer()$geografi)
     # Slumpa en kommun (uteslut läns- och rikssammanslagningar)
-    kommuner_bara <- setdiff(alla_geo, c("Dalarnas län", "Hela landet"))
-    slump_kommun <- if (length(kommuner_bara) > 0) sample(kommuner_bara, 1) else alla_geo[1]
+    kommuner_bara <- sort(intersect(alla_geo, kommun_sf_val()$kommunnamn))
+    lan_rader <- intersect(LAN_BRA_NAMN[vald_lan_koder()], alla_geo)
+    val <- c(lan_rader, kommuner_bara, intersect("Hela landet", alla_geo))
+    slump_kommun <- if (length(kommuner_bara) > 0) sample(kommuner_bara, 1) else val[1]
 
     updateSelectInput(session, "kommun",
-                      choices = alla_geo,
+                      choices = val,
                       selected = slump_kommun)
   }, ignoreInit = TRUE)
 
   # Filtrera data baserat på vald kommun
   data_filtered <- reactive({
     bra_kommunindikatorer() %>%
-      filter(geografi %in% c(input$kommun, "Dalarnas län", "Hela landet")) %>%
+      filter(geografi %in% c(input$kommun, bra_lan_valt(), "Hela landet")) %>%
       mutate(enhet = ifelse(str_sub(enhet, nchar(enhet), nchar(enhet)) == "\\.",
                             str_sub(enhet, 1, nchar(enhet)-1), enhet))
   })
@@ -1903,11 +1951,9 @@ shinyServer(function(input, output, session) {
     alla_geografier <- unique(plot_data$geografi)
 
     # Färgpalett i Region Dalarnas profil
-    # vald kommun = mörkblå (primary-dark), Dalarnas län = accent, Hela landet = ljus blå
-    bra_palette <- c(
-      "Dalarnas län" = "#54a1bd",
-      "Hela landet"  = "#8edded"
-    )
+    # vald kommun = mörkblå (primary-dark), länet = accent, Hela landet = ljus blå
+    bra_palette <- c("Hela landet" = "#8edded")
+    bra_palette[bra_lan_valt()] <- "#54a1bd"
     bra_palette[input$kommun] <- "#0f7090"
 
     p <- ggplot(plot_data, aes(x = ar, y = varde, group = geografi, color = geografi)) +
@@ -1917,7 +1963,7 @@ shinyServer(function(input, output, session) {
         size = 2
       ) +
       scale_color_manual(values = bra_palette,
-                         breaks = c(input$kommun, "Dalarnas län", "Hela landet")) +
+                         breaks = unique(c(input$kommun, bra_lan_valt(), "Hela landet"))) +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = "År",
@@ -1978,10 +2024,8 @@ shinyServer(function(input, output, session) {
     alla_geografier <- unique(plot_data$geografi)
 
     # Färgpalett i Region Dalarnas profil
-    bra_palette <- c(
-      "Dalarnas län" = "#54a1bd",
-      "Hela landet"  = "#8edded"
-    )
+    bra_palette <- c("Hela landet" = "#8edded")
+    bra_palette[bra_lan_valt()] <- "#54a1bd"
     bra_palette[input$kommun] <- "#0f7090"
 
     p <- ggplot(plot_data, aes(x = ar, y = varde, group = geografi, color = geografi)) +
@@ -1991,7 +2035,7 @@ shinyServer(function(input, output, session) {
         size = 2
       ) +
       scale_color_manual(values = bra_palette,
-                         breaks = c(input$kommun, "Dalarnas län", "Hela landet")) +
+                         breaks = unique(c(input$kommun, bra_lan_valt(), "Hela landet"))) +
       scale_y_continuous(breaks = scales::pretty_breaks(n = 5),
                          labels = function(x) format(x, big.mark = " ", scientific = FALSE)) +
       labs(x = "År",
@@ -2038,7 +2082,7 @@ shinyServer(function(input, output, session) {
       filter(kalla == "Anmälda brott",
              variabel == input$variabel_anm,
              enhet == "Antal",
-             !geografi %in% c("Dalarnas län", "Hela landet")) %>%
+             !geografi %in% c(LAN_BRA_NAMN, "Hela landet")) %>%
       group_by(ar, geografi) %>%
       reframe(varde = sum(varde, na.rm = TRUE), enhet = first(enhet)) %>%
       mutate(etikett = paste0(enhet, " år ", ar, " i ", geografi, ": \n", format(round(varde,1), big.mark = " ")))
@@ -2078,11 +2122,27 @@ shinyServer(function(input, output, session) {
   # ---- Flik 3: Avloppsmätningar (RISE) ----
 
   # Lazy load, precis som BRÅ-datan - tabellen behövs inte förrän användaren öppnar fliken
-  avloppsmatningar <- reactiveVal(NULL)
+  avloppsmatningar_alla <- reactiveVal(NULL)
 
   session$onFlushed(function() {
-    avloppsmatningar(hamta_avloppsmatningar(avlopp_stat_tabell))
+    avloppsmatningar_alla(hamta_avloppsmatningar(avlopp_stat_tabell))
   }, once = TRUE)
+
+  # Mätningar för kommunerna i valt län. Saknas mätningar för länet (NULL) stannar flikens
+  # diagram och karta tomma och ett meddelande visas i stället (se avlopp_har_data).
+  avloppsmatningar <- reactive({
+    df <- avloppsmatningar_alla()
+    req(df)
+    df <- dplyr::filter(df, str_sub(kommunkod, 1, 2) %in% vald_lan_koder())
+    if (nrow(df) == 0) NULL else df
+  })
+
+  output$avlopp_har_data <- reactive({
+    df <- avloppsmatningar_alla()
+    req(df)
+    any(str_sub(df$kommunkod, 1, 2) %in% vald_lan_koder())
+  })
+  outputOptions(output, "avlopp_har_data", suspendWhenHidden = FALSE)
 
   # Uppdatera ämnesvalet när datan laddats eller kategori (Narkotika/Doping) ändras.
   # Doping grupperas i optgroups (se avlopp_amnesval()/avlopp_doping_grupper), Narkotika hålls platt.
@@ -2273,7 +2333,7 @@ shinyServer(function(input, output, session) {
 
     df_senaste <- avlopp_senaste_df()
 
-    df_map <- kommun_sf %>%
+    df_map <- kommun_sf_val() %>%
       dplyr::left_join(
         avlopp_senaste_karta_df() %>% dplyr::select(kommunkod, period, varde, flaggor),
         by = "kommunkod"

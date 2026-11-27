@@ -4,9 +4,9 @@ library(leaflet)
 library(ggiraph)
 library(shinyjs)
 
-APP_BESKRIVNING <- "Polisstatistik, BRÅ:s kommunindikatorer och avloppsmätningar som stöd för det brottsförebyggande arbetet i Dalarna."
+APP_BESKRIVNING <- "Polisstatistik, BRÅ:s kommunindikatorer och avloppsmätningar som stöd för det brottsförebyggande arbetet i Polisregion Bergslagen (Dalarna, Örebro och Värmland)."
 
-APP_TITEL <- "Brottsförebyggande arbete i Dalarna"
+APP_TITEL <- "Brottsförebyggande arbete i Polisregion Bergslagen"
 
 # Liten alltid-synlig badge som markerar klickbara figurer
 klick_hint <- function(text = "Klickbar – borra ner") {
@@ -34,6 +34,21 @@ shinyUI(tagList(
 
     # JS: sätt title-attribut på selectize-fältet så hela texten visas vid hover
     # även när vi har klippt av den med ellipsis
+    # JS: kom ihåg senast valda län i webbläsaren (localStorage, ingen cookie). Det sparade värdet
+    # läses innan Shiny startar och skickas till servern som input$lan_sparat när sessionen kopplats upp.
+    tags$script(HTML(
+      "(function() {",
+      "  var NYCKEL = 'brott_valt_lan', sparat = null;",
+      "  try { sparat = window.localStorage.getItem(NYCKEL); } catch (e) {}",
+      "  $(document).on('shiny:connected', function() {",
+      "    if (sparat) Shiny.setInputValue('lan_sparat', sparat);",
+      "  });",
+      "  $(document).on('shiny:inputchanged', function(ev) {",
+      "    if (ev.name === 'lan' && ev.value) { try { window.localStorage.setItem(NYCKEL, ev.value); } catch (e) {} }",
+      "  });",
+      "})();"
+    )),
+
     tags$script(HTML(
       "Shiny.addCustomMessageHandler('set_select_title', function(msg){",
       "  var item = document.querySelector('#' + msg.id + ' + .selectize-control .selectize-input .item');",
@@ -61,6 +76,11 @@ shinyUI(tagList(
     div(
       class = "rd-header__title",
       APP_TITEL
+    ),
+    div(
+      class = "rd-header__lan",
+      tags$label(`for` = "lan", "Visa:"),
+      selectInput("lan", label = NULL, choices = LAN_VAL, selected = "alla", width = "230px")
     ),
     tags$a(
       href = "https://www.regiondalarna.se/verksamhet/regional-utveckling/statistik-och-rapporter/",
@@ -181,7 +201,7 @@ shinyUI(tagList(
                        class = "bra-col-vanster",
                        selectInput("kommun", "Välj kommun:",
                                    choices = NULL,
-                                   selected = "Dalarnas län"),
+                                   selected = NULL),
                        div(class = "bra-downloads",
                            downloadButton("export_excel_bra",
                                           "Ladda ner hela datasetet",
@@ -246,6 +266,15 @@ shinyUI(tagList(
                    "}, 25000);"
                  ))
                ),
+               # Visas när det inte finns några mätningar för valt län (output.avlopp_har_data, se server.R)
+               conditionalPanel(
+                 condition = "output.avlopp_har_data === false",
+                 div(class = "avlopp-saknas",
+                     h3("Data saknas för valt län"),
+                     p("Det finns inga avloppsmätningar att visa för det län som är valt. Välj ett annat län i listan högst upp."))
+               ),
+               conditionalPanel(
+                 condition = "output.avlopp_har_data !== false",
                div(class = "avlopp-layout",
                    fluidRow(
                      # Vänster: karta, exakt samma storlek/form som i Polisstatistik-fliken
@@ -322,6 +351,7 @@ shinyUI(tagList(
                      )
                    )
                )
+               ) # conditionalPanel (avloppsmätningar finns för valt län)
       ),
 
       tabPanel(
@@ -359,7 +389,7 @@ shinyUI(tagList(
       <br>
       <h4>Polisstatistik</h4>
       <p>
-        Här kan du analysera brottsstatistik för Dalarna. Detta verktyg är en
+        Här kan du analysera brottsstatistik för Polisregion Bergslagen (Dalarna, Örebro och Värmland). Välj län i listan högst upp, och din inställning sparas i webbläsaren till nästa gång. Detta verktyg är en
         prototyp och det färdiga verktyget kommer att publiceras på annan plats.
         I och med det kommer denna sida att stängas ned.
       </p>
@@ -370,7 +400,7 @@ shinyUI(tagList(
         <li>Du går tillbaka med uppåtpilen under diagrammet.</li>
         <li>Klicka på en kommun i kartan för att se brott i kommunen och hur de fördelar sig per demografiskt statistikområde (DeSO).</li>
         <li>Klicka på husikonen uppe till vänster i kartan för att se alla kommuner igen.</li>
-        <li>För att ladda ner hela datasetet för alla kommuner i Dalarna som en Excelfil, klicka på <i>Hela datasetet</i>.</li>
+        <li>För att ladda ner hela datasetet för alla kommuner i valt län som en Excelfil, klicka på <i>Hela datasetet</i>.</li>
         <li>För att spara ett diagram, för muspekaren över diagrammet och klicka på den blå ikonen högst upp till höger.</li>
       </ul>
 
@@ -388,7 +418,7 @@ shinyUI(tagList(
       </p>
 
       <ul>
-        <li>För att ladda ner hela datasetet för alla kommuner i Dalarna som en Excelfil, klicka på <i>Ladda ner hela datasetet</i>.</li>
+        <li>För att ladda ner hela datasetet för alla kommuner i valt län som en Excelfil, klicka på <i>Ladda ner hela datasetet</i>.</li>
         <li>För att spara ett diagram, för muspekaren över diagrammet och klicka på den blå ikonen högst upp till höger.</li>
       </ul>
     ")
