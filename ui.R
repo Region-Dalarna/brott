@@ -41,7 +41,9 @@ shinyUI(tagList(
       "  var NYCKEL = 'brott_valt_lan', sparat = null;",
       "  try { sparat = window.localStorage.getItem(NYCKEL); } catch (e) {}",
       "  $(document).on('shiny:connected', function() {",
-      "    if (sparat) Shiny.setInputValue('lan_sparat', sparat);",
+      "    var sel = document.getElementById('lan');",
+      "    if (sparat && sel && sel.selectize) sel.selectize.setValue(sparat);", # visa det sparade länet direkt
+      "    Shiny.setInputValue('lan_sparat', sparat || '');",
       "  });",
       "  $(document).on('shiny:inputchanged', function(ev) {",
       "    if (ev.name === 'lan' && ev.value) { try { window.localStorage.setItem(NYCKEL, ev.value); } catch (e) {} }",

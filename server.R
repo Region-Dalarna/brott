@@ -238,9 +238,15 @@ shinyServer(function(input, output, session) {
 
   # ---- Länsval: Polisregion Bergslagen ("alla") eller ett enskilt län ----
   # Styr kartor, polisdata, befolkning, BRÅ-fliken och avloppsmätningarna
+  # aktivt_lan är tomt tills webbläsaren skickat det sparade länsvalet (input$lan_sparat). Allt som
+  # beror på länet väntar på det, så att appen inte först ritas för Polisregion Bergslagen och sedan
+  # ritas om för det län som valdes senast.
+  aktivt_lan <- reactiveVal(NULL)
+
   vald_lan_koder <- reactive({
-    lan <- input$lan
-    if (is.null(lan) || !lan %in% LAN_VAL || lan == "alla") unname(LAN_KODER) else lan
+    lan <- aktivt_lan()
+    req(lan)
+    if (lan == "alla") unname(LAN_KODER) else lan
   })
 
   lan_text <- reactive({
@@ -253,16 +259,24 @@ shinyServer(function(input, output, session) {
   bef_df_val    <- reactive(dplyr::filter(bef_df,    str_sub(kommunkod, 1, 2) %in% vald_lan_koder()))
 
   # Återställ vald kommun/DeSO när länet byts, annars kan en kommun i ett annat län ligga kvar som val
-  observeEvent(input$lan, {
+  observeEvent(aktivt_lan(), {
     kartniva("kommun")
     vald_kommun("Alla")
     vald_deso(NULL)
   }, ignoreInit = TRUE)
 
-  # Länet användaren valde senast (sparas i webbläsarens localStorage, se ui.R)
+  # Länet användaren valde senast (sparas i webbläsarens localStorage, se ui.R). Skickas alltid när
+  # sessionen kopplats upp, tom sträng om inget är sparat.
   observeEvent(input$lan_sparat, {
-    if (input$lan_sparat %in% LAN_VAL) updateSelectInput(session, "lan", selected = input$lan_sparat)
+    lan <- if (input$lan_sparat %in% LAN_VAL) input$lan_sparat else "alla"
+    aktivt_lan(lan)
+    updateSelectInput(session, "lan", selected = lan)
   }, once = TRUE)
+
+  # Användaren byter län i listrutan (ignoreras tills det sparade valet är hanterat)
+  observeEvent(input$lan, {
+    if (!is.null(aktivt_lan()) && input$lan %in% LAN_VAL && input$lan != aktivt_lan()) aktivt_lan(input$lan)
+  }, ignoreInit = TRUE)
 
 
   meta_polisen <- reactive({
@@ -1849,7 +1863,7 @@ shinyServer(function(input, output, session) {
   })
 
   # Uppdatera kommun-listrutan med kommunerna i valt län (och länsraderna), och slumpa förvalet
-  observeEvent(list(bra_kommunindikatorer(), input$lan), {
+  observeEvent(list(bra_kommunindikatorer(), aktivt_lan()), {
     req(bra_kommunindikatorer())
     alla_geo <- unique(bra_kommunindikatorer()$geografi)
     # Slumpa en kommun (uteslut läns- och rikssammanslagningar)
